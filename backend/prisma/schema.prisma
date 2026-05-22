@@ -1,0 +1,368 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id       Int    @id @default(autoincrement()) @db.UnsignedTinyInt
+  namaRole NamaRole @unique @map("nama_role")
+  users    User[]
+
+  @@map("roles")
+}
+
+enum NamaRole {
+  admin
+  dosen
+  asisten
+  praktikan
+}
+
+model User {
+  id           Int      @id @default(autoincrement()) @db.UnsignedInt
+  roleId       Int      @db.UnsignedTinyInt @map("role_id")
+  nama         String   @db.VarChar(120)
+  email        String   @unique @db.VarChar(160)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  fotoProfil   String?  @map("foto_profil") @db.VarChar(255)
+  aktif        Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  role               Role                @relation(fields: [roleId], references: [id])
+  mahasiswa          Mahasiswa?
+  dosen              Dosen?
+  asisten            Asisten?
+  ajuanSebagaiPengaju AjuanPindahJadwal[] @relation("PengajuRelation")
+  ajuanSebagaiAdmin  AjuanPindahJadwal[] @relation("AdminRelation")
+  sesiDibuka         SesiPraktikum[]
+  nilaiDiinput       Nilai[]
+  absensiDicatat     Absensi[]
+  logAktivitas       LogAktivitas[]
+
+  @@map("users")
+}
+
+model Mahasiswa {
+  id           Int    @id @default(autoincrement()) @db.UnsignedInt
+  userId       Int    @unique @db.UnsignedInt @map("user_id")
+  stambuk      String @unique @db.VarChar(20)
+  qrToken      String @unique @default(uuid()) @map("qr_token") @db.VarChar(64)
+  angkatan     Int    @db.Year
+  programStudi String? @map("program_studi") @db.VarChar(80)
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pesertaJadwal PesertaJadwal[]
+  absensi       Absensi[]
+  nilai         Nilai[]
+  rekapNilai    RekapNilaiAkhir[]
+
+  @@map("mahasiswa")
+}
+
+model Dosen {
+  id           Int     @id @default(autoincrement()) @db.UnsignedInt
+  userId       Int     @unique @db.UnsignedInt @map("user_id")
+  nid          String  @unique @db.VarChar(20)
+  spesialisasi String? @db.VarChar(100)
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pengampu  Pengampu[]
+  materi    Materi[]
+
+  @@map("dosen")
+}
+
+model Asisten {
+  id      Int    @id @default(autoincrement()) @db.UnsignedInt
+  userId  Int    @unique @db.UnsignedInt @map("user_id")
+  stambuk String @db.VarChar(20)
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jadwalPraktikum  JadwalPraktikum[]
+
+  @@map("asisten")
+}
+
+model MataKuliah {
+  id          Int          @id @default(autoincrement()) @db.UnsignedInt
+  kode        String       @unique @db.VarChar(20)
+  nama        String       @db.VarChar(150)
+  sks         Int          @default(2) @db.UnsignedTinyInt
+  tipe        TipeMataKuliah @default(keduanya)
+  deskripsi   String?      @db.Text
+  aktif       Boolean      @default(true)
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  pengampu        Pengampu[]
+  jadwalPraktikum JadwalPraktikum[]
+  komponenNilai   KomponenNilai[]
+  materi          Materi[]
+  rekapNilai      RekapNilaiAkhir[]
+
+  @@map("mata_kuliah")
+}
+
+enum TipeMataKuliah {
+  kuliah
+  praktikum
+  keduanya
+}
+
+model Pengampu {
+  id           Int    @id @default(autoincrement()) @db.UnsignedInt
+  dosenId      Int    @db.UnsignedInt @map("dosen_id")
+  mataKuliahId Int    @db.UnsignedInt @map("mata_kuliah_id")
+  semester     String @db.VarChar(12)
+
+  dosen      Dosen      @relation(fields: [dosenId], references: [id])
+  mataKuliah MataKuliah @relation(fields: [mataKuliahId], references: [id])
+
+  @@unique([dosenId, mataKuliahId, semester])
+  @@map("pengampu")
+}
+
+model Ruangan {
+  id        Int    @id @default(autoincrement()) @db.UnsignedInt
+  kode      String @unique @db.VarChar(20)
+  nama      String @db.VarChar(80)
+  kapasitas Int?   @db.UnsignedSmallInt
+
+  jadwalPraktikum JadwalPraktikum[]
+
+  @@map("ruangan")
+}
+
+model JadwalPraktikum {
+  id             Int    @id @default(autoincrement()) @db.UnsignedInt
+  mataKuliahId   Int    @db.UnsignedInt @map("mata_kuliah_id")
+  asisenId       Int?   @db.UnsignedInt @map("asisten_id")
+  ruanganId      Int?   @db.UnsignedInt @map("ruangan_id")
+  hari           Hari
+  jamMulai       String @map("jam_mulai") @db.VarChar(8)
+  jamSelesai     String @map("jam_selesai") @db.VarChar(8)
+  semester       String @db.VarChar(12)
+  kapasitasGrup  Int    @default(30) @db.UnsignedTinyInt @map("kapasitas_grup")
+  aktif          Boolean @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  mataKuliah        MataKuliah          @relation(fields: [mataKuliahId], references: [id])
+  asisten           Asisten?            @relation(fields: [asisenId], references: [id], onDelete: SetNull)
+  ruangan           Ruangan?            @relation(fields: [ruanganId], references: [id], onDelete: SetNull)
+  pesertaJadwal     PesertaJadwal[]
+  sesiPraktikum     SesiPraktikum[]
+  ajuanAsal         AjuanPindahJadwal[] @relation("JadwalAsalRelation")
+  ajuanTujuan       AjuanPindahJadwal[] @relation("JadwalTujuanRelation")
+
+  @@map("jadwal_praktikum")
+}
+
+enum Hari {
+  Senin
+  Selasa
+  Rabu
+  Kamis
+  Jumat
+  Sabtu
+}
+
+model PesertaJadwal {
+  id          Int @id @default(autoincrement()) @db.UnsignedInt
+  jadwalId    Int @db.UnsignedInt @map("jadwal_id")
+  mahasiswaId Int @db.UnsignedInt @map("mahasiswa_id")
+
+  jadwal    JadwalPraktikum @relation(fields: [jadwalId], references: [id])
+  mahasiswa Mahasiswa       @relation(fields: [mahasiswaId], references: [id])
+
+  @@unique([jadwalId, mahasiswaId])
+  @@map("peserta_jadwal")
+}
+
+model AjuanPindahJadwal {
+  id              Int    @id @default(autoincrement()) @db.UnsignedInt
+  pengajuId       Int    @db.UnsignedInt @map("pengaju_id")
+  jadwalAsalId    Int    @db.UnsignedInt @map("jadwal_asal_id")
+  jadwalTujuanId  Int    @db.UnsignedInt @map("jadwal_tujuan_id")
+  alasan          String @db.Text
+  status          StatusAjuan @default(menunggu)
+  catatanAdmin    String? @map("catatan_admin") @db.Text
+  diprosesOleh    Int?    @db.UnsignedInt @map("diproses_oleh")
+  diprosesOn      DateTime? @map("diproses_pada")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  pengaju      User            @relation("PengajuRelation", fields: [pengajuId], references: [id])
+  jadwalAsal   JadwalPraktikum @relation("JadwalAsalRelation", fields: [jadwalAsalId], references: [id])
+  jadwalTujuan JadwalPraktikum @relation("JadwalTujuanRelation", fields: [jadwalTujuanId], references: [id])
+  admin        User?           @relation("AdminRelation", fields: [diprosesOleh], references: [id], onDelete: SetNull)
+
+  @@map("ajuan_pindah_jadwal")
+}
+
+enum StatusAjuan {
+  menunggu
+  disetujui
+  ditolak
+}
+
+model SesiPraktikum {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  jadwalId    Int      @db.UnsignedInt @map("jadwal_id")
+  tanggal     DateTime @db.Date
+  pertemuanKe Int      @default(1) @db.UnsignedTinyInt @map("pertemuan_ke")
+  topik       String?  @db.VarChar(200)
+  dibukaoOleh Int?     @db.UnsignedInt @map("dibuka_oleh")
+  dibukaPada  DateTime? @map("dibuka_pada")
+  ditutupPada DateTime? @map("ditutup_pada")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  jadwal  JadwalPraktikum @relation(fields: [jadwalId], references: [id])
+  asisten User?           @relation(fields: [dibukaoOleh], references: [id], onDelete: SetNull)
+  absensi Absensi[]
+  nilai   Nilai[]
+
+  @@unique([jadwalId, tanggal, pertemuanKe])
+  @@map("sesi_praktikum")
+}
+
+model Absensi {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  sesiId      Int      @db.UnsignedInt @map("sesi_id")
+  mahasiswaId Int      @db.UnsignedInt @map("mahasiswa_id")
+  status      StatusAbsensi @default(alpa)
+  metode      MetodeAbsensi @default(manual)
+  waktuAbsen  DateTime? @map("waktu_absen")
+  keterangan  String?  @db.VarChar(200)
+  dicatatOleh Int?     @db.UnsignedInt @map("dicatat_oleh")
+
+  sesi      SesiPraktikum @relation(fields: [sesiId], references: [id])
+  mahasiswa Mahasiswa     @relation(fields: [mahasiswaId], references: [id])
+  asisten   User?         @relation(fields: [dicatatOleh], references: [id], onDelete: SetNull)
+
+  @@unique([sesiId, mahasiswaId])
+  @@map("absensi")
+}
+
+enum StatusAbsensi {
+  hadir
+  izin
+  sakit
+  alpa
+}
+
+enum MetodeAbsensi {
+  manual
+  qr_scan
+}
+
+model KomponenNilai {
+  id           Int    @id @default(autoincrement()) @db.UnsignedInt
+  mataKuliahId Int    @db.UnsignedInt @map("mata_kuliah_id")
+  nama         String @db.VarChar(80)
+  kategori     KategoriNilai
+  bobot        Decimal @db.Decimal(5, 2)
+  diinputOleh  DiinputOleh @map("diinput_oleh")
+
+  mataKuliah MataKuliah @relation(fields: [mataKuliahId], references: [id])
+  nilai      Nilai[]
+
+  @@unique([mataKuliahId, nama])
+  @@map("komponen_nilai")
+}
+
+enum KategoriNilai {
+  praktikum
+  asistensi
+  uts
+  uas
+  tugas
+  lainnya
+}
+
+enum DiinputOleh {
+  asisten
+  dosen
+}
+
+model Nilai {
+  id          Int     @id @default(autoincrement()) @db.UnsignedInt
+  mahasiswaId Int     @db.UnsignedInt @map("mahasiswa_id")
+  komponenId  Int     @db.UnsignedInt @map("komponen_id")
+  sesiId      Int?    @db.UnsignedInt @map("sesi_id")
+  nilai       Decimal @db.Decimal(5, 2)
+  catatan     String? @db.VarChar(200)
+  diinputOleh Int     @db.UnsignedInt @map("diinput_oleh")
+  diinputPada DateTime @default(now()) @map("diinput_pada")
+
+  mahasiswa Mahasiswa     @relation(fields: [mahasiswaId], references: [id])
+  komponen  KomponenNilai @relation(fields: [komponenId], references: [id])
+  sesi      SesiPraktikum? @relation(fields: [sesiId], references: [id], onDelete: SetNull)
+  inputor   User          @relation(fields: [diinputOleh], references: [id])
+
+  @@unique([mahasiswaId, komponenId, sesiId])
+  @@map("nilai")
+}
+
+model RekapNilaiAkhir {
+  id              Int     @id @default(autoincrement()) @db.UnsignedInt
+  mahasiswaId     Int     @db.UnsignedInt @map("mahasiswa_id")
+  mataKuliahId    Int     @db.UnsignedInt @map("mata_kuliah_id")
+  semester        String  @db.VarChar(12)
+  nilaiPraktikum  Decimal? @map("nilai_praktikum") @db.Decimal(5, 2)
+  nilaiAsistensi  Decimal? @map("nilai_asistensi") @db.Decimal(5, 2)
+  nilaiUts        Decimal? @map("nilai_uts") @db.Decimal(5, 2)
+  nilaiUas        Decimal? @map("nilai_uas") @db.Decimal(5, 2)
+  nilaiAkhir      Decimal? @map("nilai_akhir") @db.Decimal(5, 2)
+  grade           String?  @db.Char(2)
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  mahasiswa  Mahasiswa  @relation(fields: [mahasiswaId], references: [id])
+  mataKuliah MataKuliah @relation(fields: [mataKuliahId], references: [id])
+
+  @@unique([mahasiswaId, mataKuliahId, semester])
+  @@map("rekap_nilai_akhir")
+}
+
+model Materi {
+  id           Int     @id @default(autoincrement()) @db.UnsignedInt
+  mataKuliahId Int     @db.UnsignedInt @map("mata_kuliah_id")
+  dosenId      Int     @db.UnsignedInt @map("dosen_id")
+  judul        String  @db.VarChar(200)
+  deskripsi    String? @db.Text
+  tipe         TipeMateri @default(materi)
+  filePath     String  @map("file_path") @db.VarChar(255)
+  ukuranKb     Int?    @db.UnsignedInt @map("ukuran_kb")
+  semester     String  @db.VarChar(12)
+  publishedAt  DateTime? @map("published_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  mataKuliah MataKuliah @relation(fields: [mataKuliahId], references: [id])
+  dosen      Dosen      @relation(fields: [dosenId], references: [id])
+
+  @@map("materi")
+}
+
+enum TipeMateri {
+  modul
+  materi
+  referensi
+  lainnya
+}
+
+model LogAktivitas {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  userId    Int?     @db.UnsignedInt @map("user_id")
+  aksi      String   @db.VarChar(80)
+  entitas   String?  @db.VarChar(60)
+  entitasId Int?     @db.UnsignedInt @map("entitas_id")
+  deskripsi String?  @db.Text
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("log_aktivitas")
+}
