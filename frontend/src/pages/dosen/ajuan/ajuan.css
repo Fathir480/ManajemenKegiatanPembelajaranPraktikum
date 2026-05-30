@@ -1,0 +1,9 @@
+/* CSS Spesifik untuk Halaman Ajuan Dosen */
+.ajuan-dosen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}

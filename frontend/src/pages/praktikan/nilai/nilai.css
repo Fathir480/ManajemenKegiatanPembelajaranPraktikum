@@ -1,0 +1,10 @@
+/* CSS Spesifik untuk Halaman Nilai Praktikan */
+.nilai-section-title {
+  margin-top: var(--space-8);
+  margin-bottom: var(--space-4);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 400;
+  border-bottom: 1.5px solid var(--hairline);
+  padding-bottom: var(--space-2);
+}

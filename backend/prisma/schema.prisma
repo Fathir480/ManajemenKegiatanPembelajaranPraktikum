@@ -54,6 +54,7 @@ model Mahasiswa {
   qrToken      String @unique @default(uuid()) @map("qr_token") @db.VarChar(64)
   angkatan     Int    @db.Year
   programStudi String? @map("program_studi") @db.VarChar(80)
+  kelas        String? @db.VarChar(10)
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   pesertaJadwal PesertaJadwal[]
@@ -148,6 +149,7 @@ model JadwalPraktikum {
   semester       String @db.VarChar(12)
   kapasitasGrup  Int    @default(30) @db.UnsignedTinyInt @map("kapasitas_grup")
   aktif          Boolean @default(true)
+  kelas          String? @db.VarChar(10)
   createdAt      DateTime @default(now()) @map("created_at")
 
   mataKuliah        MataKuliah          @relation(fields: [mataKuliahId], references: [id])

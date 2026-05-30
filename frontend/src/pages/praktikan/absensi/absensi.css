@@ -1,0 +1,13 @@
+/* CSS Spesifik untuk Halaman Absensi Praktikan */
+.absensi-rekap-panel {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+@media (max-width: 768px) {
+  .absensi-rekap-panel {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

@@ -1,0 +1,19 @@
+/* CSS Spesifik untuk Halaman Manajemen Mata Kuliah */
+.matkul-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.search-wrapper {
+  position: relative;
+  max-width: 320px;
+  width: 100%;
+}
+
+.search-wrapper input {
+  padding-left: 36px;
+}

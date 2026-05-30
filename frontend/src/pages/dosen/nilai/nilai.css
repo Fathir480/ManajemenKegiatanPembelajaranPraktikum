@@ -1,0 +1,16 @@
+/* CSS Spesifik untuk Halaman Nilai Dosen */
+.nilai-dosen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.input-grade {
+  width: 90px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 500;
+}

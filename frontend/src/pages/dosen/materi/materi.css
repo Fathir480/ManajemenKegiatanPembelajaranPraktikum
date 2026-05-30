@@ -1,0 +1,22 @@
+/* CSS Spesifik untuk Halaman Materi Dosen */
+.materi-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.materi-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background-color: var(--surface-soft);
+  transition: all var(--transition);
+}
+
+.materi-item:hover {
+  border-color: var(--pacific-blue);
+}

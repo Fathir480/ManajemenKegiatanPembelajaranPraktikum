@@ -32,22 +32,33 @@ router.post('/mahasiswa', async (req, res) => {
     const existingMhs = await prisma.mahasiswa.findUnique({ where: { stambuk } });
     if (existingMhs) return res.status(400).json({ message: 'Stambuk sudah terdaftar.' });
 
+    // Hitung jumlah mahasiswa di angkatan & prodi yang sama untuk menentukan kelas otomatis (A1, A2, dst - maks 30 per kelas)
+    const count = await prisma.mahasiswa.count({
+      where: {
+        angkatan: parseInt(angkatan),
+        programStudi: programStudi || null
+      }
+    });
+    const classNumber = Math.floor(count / 30) + 1;
+    const kelas = `A${classNumber}`;
+
     const roleId = await prisma.role.findUnique({ where: { namaRole: 'praktikan' } });
-    const passwordHash = await bcrypt.hash(password, 10);
+    const finalPassword = password || 'mahasiswa123';
+    const passwordHash = await bcrypt.hash(finalPassword, 10);
 
     const user = await prisma.user.create({
       data: {
         nama, email, passwordHash,
         roleId: roleId.id,
         mahasiswa: {
-          create: { stambuk, angkatan: parseInt(angkatan), programStudi },
+          create: { stambuk, angkatan: parseInt(angkatan), programStudi, kelas },
         },
       },
       include: { mahasiswa: true },
     });
 
     const { passwordHash: _, ...userSafe } = user;
-    res.status(201).json({ message: 'Mahasiswa berhasil ditambahkan.', data: userSafe });
+    res.status(201).json({ message: `Mahasiswa berhasil ditambahkan ke Kelas ${kelas}.`, data: userSafe });
   } catch (error) {
     res.status(500).json({ message: 'Gagal menambah mahasiswa.', error: error.message });
   }
@@ -82,12 +93,80 @@ router.put('/mahasiswa/:id', async (req, res) => {
 // DELETE mahasiswa
 router.delete('/mahasiswa/:id', async (req, res) => {
   try {
-    const mhs = await prisma.mahasiswa.findUnique({ where: { id: parseInt(req.params.id) } });
+    const mhsId = parseInt(req.params.id);
+    const mhs = await prisma.mahasiswa.findUnique({ where: { id: mhsId } });
     if (!mhs) return res.status(404).json({ message: 'Mahasiswa tidak ditemukan.' });
-    await prisma.user.delete({ where: { id: mhs.userId } }); // cascade akan hapus mahasiswa
+
+    // Hapus semua relasi terkait terlebih dahulu dalam satu transaksi agar tidak terjadi bentrok foreign key
+    await prisma.$transaction([
+      prisma.nilai.deleteMany({ where: { mahasiswaId: mhsId } }),
+      prisma.absensi.deleteMany({ where: { mahasiswaId: mhsId } }),
+      prisma.pesertaJadwal.deleteMany({ where: { mahasiswaId: mhsId } }),
+      prisma.rekapNilaiAkhir.deleteMany({ where: { mahasiswaId: mhsId } }),
+      prisma.user.delete({ where: { id: mhs.userId } }) // cascade akan menghapus data di tabel mahasiswa
+    ]);
+
     res.json({ message: 'Mahasiswa berhasil dihapus.' });
   } catch (error) {
     res.status(500).json({ message: 'Gagal menghapus mahasiswa.', error: error.message });
+  }
+});
+
+// POST impor massal mahasiswa (Excel/CSV)
+router.post('/mahasiswa/bulk', async (req, res) => {
+  try {
+    const { items } = req.body; // Array dari { nama, email, password, stambuk, angkatan, programStudi }
+    if (!Array.isArray(items)) return res.status(400).json({ message: 'Data items harus berupa array.' });
+
+    const roleId = await prisma.role.findUnique({ where: { namaRole: 'praktikan' } });
+    const defaultPasswordHash = await bcrypt.hash('mahasiswa123', 10);
+    let successCount = 0;
+    let skipCount = 0;
+
+    for (const item of items) {
+      try {
+        const { nama, email, password, stambuk, angkatan, programStudi } = item;
+        if (!email || !stambuk || !nama || !angkatan) {
+          skipCount++;
+          continue;
+        }
+
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (existingUser) { skipCount++; continue; }
+
+        const existingMhs = await prisma.mahasiswa.findUnique({ where: { stambuk } });
+        if (existingMhs) { skipCount++; continue; }
+
+        // Hitung kelas otomatis (A1, A2, dst)
+        const count = await prisma.mahasiswa.count({
+          where: {
+            angkatan: parseInt(angkatan),
+            programStudi: programStudi || null
+          }
+        });
+        const classNumber = Math.floor(count / 30) + 1;
+        const kelas = `A${classNumber}`;
+
+        const pHash = password ? await bcrypt.hash(password, 10) : defaultPasswordHash;
+
+        await prisma.user.create({
+          data: {
+            nama, email, passwordHash: pHash,
+            roleId: roleId.id,
+            mahasiswa: {
+              create: { stambuk, angkatan: parseInt(angkatan), programStudi, kelas },
+            },
+          }
+        });
+        successCount++;
+      } catch (err) {
+        skipCount++;
+      }
+    }
+
+    res.json({ message: `Impor massal selesai. ${successCount} mahasiswa berhasil ditambahkan, ${skipCount} dilewati.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal melakukan impor massal mahasiswa.', error: error.message });
   }
 });
 
@@ -108,7 +187,8 @@ router.post('/dosen', async (req, res) => {
   try {
     const { nama, email, password, nid, spesialisasi } = req.body;
     const roleId = await prisma.role.findUnique({ where: { namaRole: 'dosen' } });
-    const passwordHash = await bcrypt.hash(password, 10);
+    const finalPassword = password || 'dosen123';
+    const passwordHash = await bcrypt.hash(finalPassword, 10);
 
     const user = await prisma.user.create({
       data: {
@@ -122,6 +202,54 @@ router.post('/dosen', async (req, res) => {
     res.status(201).json({ message: 'Dosen berhasil ditambahkan.', data: userSafe });
   } catch (error) {
     res.status(500).json({ message: 'Gagal menambah dosen.', error: error.message });
+  }
+});
+
+// POST impor massal dosen (Excel/CSV)
+router.post('/dosen/bulk', async (req, res) => {
+  try {
+    const { items } = req.body; // Array dari { nama, email, password, nid, spesialisasi }
+    if (!Array.isArray(items)) return res.status(400).json({ message: 'Data items harus berupa array.' });
+
+    const roleId = await prisma.role.findUnique({ where: { namaRole: 'dosen' } });
+    const defaultPasswordHash = await bcrypt.hash('dosen123', 10);
+    let successCount = 0;
+    let skipCount = 0;
+
+    for (const item of items) {
+      try {
+        const { nama, email, password, nid, spesialisasi } = item;
+        if (!email || !nid || !nama) {
+          skipCount++;
+          continue;
+        }
+
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (existingUser) { skipCount++; continue; }
+
+        const existingDosen = await prisma.dosen.findUnique({ where: { nid } });
+        if (existingDosen) { skipCount++; continue; }
+
+        const pHash = password ? await bcrypt.hash(password, 10) : defaultPasswordHash;
+
+        await prisma.user.create({
+          data: {
+            nama, email, passwordHash: pHash,
+            roleId: roleId.id,
+            dosen: {
+              create: { nid, spesialisasi },
+            },
+          }
+        });
+        successCount++;
+      } catch (err) {
+        skipCount++;
+      }
+    }
+
+    res.json({ message: `Impor massal selesai. ${successCount} dosen berhasil ditambahkan, ${skipCount} dilewati.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal melakukan impor massal dosen.', error: error.message });
   }
 });
 
@@ -161,6 +289,46 @@ router.put('/matkul/:id', async (req, res) => {
   }
 });
 
+// POST impor massal mata kuliah (Excel/CSV)
+router.post('/matkul/bulk', async (req, res) => {
+  try {
+    const { items } = req.body; // Array dari { kode, nama, sks, tipe, deskripsi }
+    if (!Array.isArray(items)) return res.status(400).json({ message: 'Data items harus berupa array.' });
+
+    let successCount = 0;
+    let skipCount = 0;
+
+    for (const item of items) {
+      try {
+        const { kode, nama, sks, tipe, deskripsi } = item;
+        if (!kode || !nama) {
+          skipCount++;
+          continue;
+        }
+
+        const existingMatkul = await prisma.mataKuliah.findUnique({ where: { kode } });
+        if (existingMatkul) { skipCount++; continue; }
+
+        await prisma.mataKuliah.create({
+          data: {
+            kode, nama,
+            sks: sks ? parseInt(sks) : 2,
+            tipe: tipe || 'praktikum',
+            deskripsi
+          }
+        });
+        successCount++;
+      } catch (err) {
+        skipCount++;
+      }
+    }
+
+    res.json({ message: `Impor massal selesai. ${successCount} mata kuliah berhasil ditambahkan, ${skipCount} dilewati.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal melakukan impor massal mata kuliah.', error: error.message });
+  }
+});
+
 // ── JADWAL PRAKTIKUM ───────────────────────────────────────
 
 router.get('/jadwal', async (req, res) => {
@@ -181,19 +349,132 @@ router.get('/jadwal', async (req, res) => {
 
 router.post('/jadwal', async (req, res) => {
   try {
-    const { mataKuliahId, asisenId, ruanganId, hari, jamMulai, jamSelesai, semester, kapasitasGrup } = req.body;
+    const { mataKuliahId, asisenId, ruanganId, hari, jamMulai, jamSelesai, semester, kapasitasGrup, kelas } = req.body;
+
+    const mkId = parseInt(mataKuliahId);
+    const roomId = ruanganId ? parseInt(ruanganId) : null;
+    const astId = asisenId ? parseInt(asisenId) : null;
+
+    // ── 1. VALIDASI BENTROK KELAS ──────────────────────────────
+    if (kelas) {
+      const classConflict = await prisma.jadwalPraktikum.findFirst({
+        where: {
+          kelas, hari, semester,
+          jamMulai: { lt: jamSelesai },
+          jamSelesai: { gt: jamMulai }
+        },
+        include: { mataKuliah: { select: { nama: true } } }
+      });
+      if (classConflict) {
+        return res.status(400).json({ 
+          message: `Bentrok Kelas: Kelas ${kelas} sudah dijadwalkan mengikuti praktikum '${classConflict.mataKuliah?.nama}' pada ${hari} jam ${classConflict.jamMulai}-${classConflict.jamSelesai}.` 
+        });
+      }
+    }
+
+    // ── 2. VALIDASI BENTROK RUANGAN ────────────────────────────
+    if (roomId) {
+      const roomConflict = await prisma.jadwalPraktikum.findFirst({
+        where: {
+          ruanganId: roomId, hari, semester,
+          jamMulai: { lt: jamSelesai },
+          jamSelesai: { gt: jamMulai }
+        },
+        include: { ruangan: true, mataKuliah: { select: { nama: true } } }
+      });
+      if (roomConflict) {
+        return res.status(400).json({ 
+          message: `Bentrok Ruangan: Ruangan ${roomConflict.ruangan?.nama} sedang digunakan untuk praktikum '${roomConflict.mataKuliah?.nama}' pada ${hari} jam ${roomConflict.jamMulai}-${roomConflict.jamSelesai}.` 
+        });
+      }
+    }
+
+    // ── 3. VALIDASI BENTROK ASISTEN ────────────────────────────
+    if (astId) {
+      const asistenConflict = await prisma.jadwalPraktikum.findFirst({
+        where: {
+          asisenId: astId, hari, semester,
+          jamMulai: { lt: jamSelesai },
+          jamSelesai: { gt: jamMulai }
+        },
+        include: { asisten: { include: { user: { select: { nama: true } } } }, mataKuliah: { select: { nama: true } } }
+      });
+      if (asistenConflict) {
+        return res.status(400).json({ 
+          message: `Bentrok Asisten: Asisten ${asistenConflict.asisten?.user?.nama} sedang mendampingi praktikum '${asistenConflict.mataKuliah?.nama}' pada ${hari} jam ${asistenConflict.jamMulai}-${asistenConflict.jamSelesai}.` 
+        });
+      }
+    }
+
+    // ── 4. VALIDASI BENTROK DOSEN ──────────────────────────────
+    const pengampuList = await prisma.pengampu.findMany({ where: { mataKuliahId: mkId } });
+    const dosenIds = pengampuList.map(p => p.dosenId);
+    
+    if (dosenIds.length > 0) {
+      const dosenConflict = await prisma.jadwalPraktikum.findFirst({
+        where: {
+          hari, semester,
+          jamMulai: { lt: jamSelesai },
+          jamSelesai: { gt: jamMulai },
+          mataKuliah: {
+            pengampu: {
+              some: { dosenId: { in: dosenIds } }
+            }
+          }
+        },
+        include: { 
+          mataKuliah: { 
+            include: { 
+              pengampu: { 
+                include: { dosen: { include: { user: { select: { nama: true } } } } } 
+              } 
+            } 
+          } 
+        }
+      });
+      if (dosenConflict) {
+        const dosenNama = dosenConflict.mataKuliah?.pengampu[0]?.dosen?.user?.nama || 'Dosen Pengampu';
+        return res.status(400).json({ 
+          message: `Bentrok Dosen: Dosen pengampu (${dosenNama}) sudah memiliki jadwal bimbingan/kuliah '${dosenConflict.mataKuliah?.nama}' pada ${hari} jam ${dosenConflict.jamMulai}-${dosenConflict.jamSelesai}.` 
+        });
+      }
+    }
+
     const jadwal = await prisma.jadwalPraktikum.create({
       data: {
-        mataKuliahId: parseInt(mataKuliahId),
-        asisenId: asisenId ? parseInt(asisenId) : null,
-        ruanganId: ruanganId ? parseInt(ruanganId) : null,
+        mataKuliahId: mkId,
+        asisenId: astId,
+        ruanganId: roomId,
         hari, jamMulai, jamSelesai, semester,
         kapasitasGrup: parseInt(kapasitasGrup) || 30,
+        kelas
       },
     });
-    res.status(201).json({ message: 'Jadwal berhasil ditambahkan.', data: jadwal });
+    res.status(201).json({ message: 'Jadwal berhasil ditambahkan tanpa konflik.', data: jadwal });
   } catch (error) {
     res.status(500).json({ message: 'Gagal menambah jadwal.', error: error.message });
+  }
+});
+
+// GET semua asisten
+router.get('/asisten', async (req, res) => {
+  try {
+    const asisten = await prisma.asisten.findMany({
+      include: { user: { select: { nama: true, email: true } } },
+    });
+    res.json(asisten);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil data asisten.' });
+  }
+});
+
+// GET semua ruangan
+router.get('/ruangan', async (req, res) => {
+  try {
+    const ruangan = await prisma.ruangan.findMany();
+    res.json(ruangan);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil data ruangan.' });
   }
 });
 

@@ -48,6 +48,69 @@ router.get('/matkul', async (req, res) => {
   }
 });
 
+// GET semua komponen nilai per mata kuliah
+router.get('/komponen/:mataKuliahId', async (req, res) => {
+  try {
+    const komponen = await prisma.komponenNilai.findMany({
+      where: { mataKuliahId: parseInt(req.params.mataKuliahId) },
+    });
+    res.json(komponen);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil komponen nilai.', error: error.message });
+  }
+});
+
+// GET semua mahasiswa peserta mata kuliah beserta nilainya untuk komponen tertentu
+router.get('/matkul/:mataKuliahId/nilai/:komponenId', async (req, res) => {
+  try {
+    const mataKuliahId = parseInt(req.params.mataKuliahId);
+    const komponenId = parseInt(req.params.komponenId);
+
+    // Cari seluruh jadwal praktikum untuk mata kuliah ini
+    const jadwals = await prisma.jadwalPraktikum.findMany({
+      where: { mataKuliahId },
+      select: { id: true },
+    });
+
+    const jadwalIds = jadwals.map(j => j.id);
+
+    // Cari semua peserta di jadwal-jadwal tersebut
+    const peserta = await prisma.pesertaJadwal.findMany({
+      where: { jadwalId: { in: jadwalIds } },
+      include: {
+        mahasiswa: {
+          include: {
+            user: { select: { nama: true, email: true } },
+            nilai: {
+              where: { komponenId },
+            },
+          },
+        },
+      },
+    });
+
+    // Gabungkan data mahasiswa dengan nilai komponen
+    const result = peserta.map(p => {
+      const nilaiRecord = p.mahasiswa.nilai[0] || null;
+      return {
+        mahasiswaId: p.mahasiswaId,
+        stambuk: p.mahasiswa.stambuk,
+        nama: p.mahasiswa.user.nama,
+        email: p.mahasiswa.user.email,
+        nilai: nilaiRecord ? nilaiRecord.nilai : 0,
+        catatan: nilaiRecord ? nilaiRecord.catatan : '',
+      };
+    });
+
+    // Remove duplicates
+    const uniqueResult = Array.from(new Map(result.map(item => [item.mahasiswaId, item])).values());
+
+    res.json(uniqueResult);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil nilai peserta.', error: error.message });
+  }
+});
+
 // POST input nilai UTS/UAS
 router.post('/nilai', async (req, res) => {
   try {
@@ -128,6 +191,64 @@ router.get('/materi/:mataKuliahId', async (req, res) => {
     res.json(materi);
   } catch (error) {
     res.status(500).json({ message: 'Gagal mengambil materi.' });
+  }
+});
+
+// GET semua ajuan yang dikirim dosen ini
+router.get('/ajuan', async (req, res) => {
+  try {
+    const ajuan = await prisma.ajuanPindahJadwal.findMany({
+      where: { pengajuId: req.user.id },
+      include: {
+        jadwalAsal: { include: { mataKuliah: true } },
+        jadwalTujuan: { include: { mataKuliah: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(ajuan);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil data ajuan.', error: error.message });
+  }
+});
+
+// GET semua jadwal diampu dosen ini (untuk opsi jadwal asal)
+router.get('/jadwal', async (req, res) => {
+  try {
+    const dosen = await prisma.dosen.findUnique({ where: { userId: req.user.id } });
+    if (!dosen) return res.status(404).json({ message: 'Data dosen tidak ditemukan.' });
+
+    const pengampu = await prisma.pengampu.findMany({
+      where: { dosenId: dosen.id },
+      select: { mataKuliahId: true },
+    });
+
+    const matkulIds = pengampu.map(p => p.mataKuliahId);
+
+    const jadwal = await prisma.jadwalPraktikum.findMany({
+      where: { mataKuliahId: { in: matkulIds } },
+      include: {
+        mataKuliah: true,
+        ruangan: true,
+      },
+    });
+    res.json(jadwal);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil jadwal dosen.' });
+  }
+});
+
+// GET semua jadwal praktikum di sistem (untuk opsi pindah jadwal)
+router.get('/semua-jadwal', async (req, res) => {
+  try {
+    const jadwal = await prisma.jadwalPraktikum.findMany({
+      include: {
+        mataKuliah: { select: { nama: true, kode: true } },
+        ruangan: true,
+      },
+    });
+    res.json(jadwal);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil seluruh jadwal.' });
   }
 });
 

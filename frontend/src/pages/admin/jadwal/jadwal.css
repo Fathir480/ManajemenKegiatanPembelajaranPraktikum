@@ -1,0 +1,234 @@
+/* CSS Spesifik untuk Halaman Manajemen Jadwal & Matrix Weekly Grid */
+
+.jadwal-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.search-wrapper {
+  position: relative;
+  max-width: 320px;
+  width: 100%;
+}
+
+.search-wrapper input {
+  padding-left: 36px;
+}
+
+/* --- Weekly Matrix Grid Styling --- */
+.matrix-wrapper {
+  margin-top: var(--space-4);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--hairline-strong);
+  background: var(--surface);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+.matrix-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+
+.matrix-table th {
+  padding: var(--space-4) var(--space-3);
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--hairline-strong);
+  border-right: 1px solid var(--hairline);
+  background: var(--surface-soft);
+  color: var(--ink);
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.matrix-table th:last-child {
+  border-right: none;
+}
+
+.matrix-table td {
+  border-bottom: 1px solid var(--hairline);
+  border-right: 1px solid var(--hairline);
+  padding: var(--space-3);
+  transition: background-color 0.2s ease;
+}
+
+.matrix-table td:last-child {
+  border-right: none;
+}
+
+.matrix-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Sesi Column Cell */
+.matrix-sesi-cell {
+  background: var(--surface-soft);
+  font-weight: 500;
+  text-align: center;
+  width: 160px;
+  min-width: 160px;
+  border-right: 2px solid var(--hairline-strong) !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  gap: var(--space-1);
+}
+
+.matrix-sesi-cell .sesi-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.matrix-sesi-cell .sesi-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--body-muted);
+  background: var(--surface);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline);
+}
+
+/* Slot Cell Container */
+.matrix-slot-cell {
+  background-color: var(--surface);
+}
+
+.matrix-slot-cell:hover {
+  background-color: var(--canvas);
+}
+
+.matrix-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 80px;
+}
+
+/* Matrix Card Styling */
+.matrix-card {
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.matrix-card:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.matrix-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.matrix-card-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--body);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.matrix-card-class {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  text-transform: uppercase;
+  background: var(--surface);
+  border: 1px solid var(--hairline-strong);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.matrix-card-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--ink);
+  line-height: 1.4;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.matrix-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: auto;
+  border-top: 1px dashed rgba(0, 0, 0, 0.06);
+  padding-top: var(--space-2);
+}
+
+.matrix-detail-item {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  color: var(--body);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Empty Cell Styling */
+.matrix-empty-slot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  min-height: 80px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 2px dashed var(--hairline);
+  border-radius: var(--radius-lg);
+  transition: all 0.2s ease;
+}
+
+.matrix-slot-cell:hover .matrix-empty-slot {
+  border-color: var(--hairline-strong);
+  color: var(--body-muted);
+  background: var(--surface);
+}
+
+/* Mobile responsive fallback reminder */
+@media (max-width: 1024px) {
+  .matrix-table {
+    min-width: 900px;
+  }
+}
