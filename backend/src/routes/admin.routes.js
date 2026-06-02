@@ -205,6 +205,50 @@ router.post('/dosen', async (req, res) => {
   }
 });
 
+// PUT update dosen
+router.put('/dosen/:id', async (req, res) => {
+  try {
+    const { nid, spesialisasi, nama, email, aktif } = req.body;
+    const dosen = await prisma.dosen.findUnique({
+      where: { id: parseInt(req.params.id) },
+      include: { user: true },
+    });
+    if (!dosen) return res.status(404).json({ message: 'Dosen tidak ditemukan.' });
+
+    await prisma.dosen.update({
+      where: { id: dosen.id },
+      data: { nid, spesialisasi },
+    });
+    if (nama || email || aktif !== undefined) {
+      await prisma.user.update({
+        where: { id: dosen.userId },
+        data: { nama, email, aktif },
+      });
+    }
+    res.json({ message: 'Data dosen berhasil diperbarui.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal memperbarui dosen.', error: error.message });
+  }
+});
+
+// DELETE dosen (cascade delete associated assignments/pengampu)
+router.delete('/dosen/:id', async (req, res) => {
+  try {
+    const dosenId = parseInt(req.params.id);
+    const dosen = await prisma.dosen.findUnique({ where: { id: dosenId } });
+    if (!dosen) return res.status(404).json({ message: 'Dosen tidak ditemukan.' });
+
+    await prisma.$transaction([
+      prisma.pengampu.deleteMany({ where: { dosenId: dosenId } }),
+      prisma.user.delete({ where: { id: dosen.userId } })
+    ]);
+
+    res.json({ message: 'Dosen berhasil dihapus.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal menghapus dosen.', error: error.message });
+  }
+});
+
 // POST impor massal dosen (Excel/CSV)
 router.post('/dosen/bulk', async (req, res) => {
   try {
@@ -286,6 +330,52 @@ router.put('/matkul/:id', async (req, res) => {
     res.json({ message: 'Mata kuliah berhasil diperbarui.', data: matkul });
   } catch (error) {
     res.status(500).json({ message: 'Gagal memperbarui mata kuliah.', error: error.message });
+  }
+});
+
+// DELETE mata kuliah (cascade delete all schedules, sessions, grades, files, and assignments)
+router.delete('/matkul/:id', async (req, res) => {
+  try {
+    const mkId = parseInt(req.params.id);
+    const matkul = await prisma.mataKuliah.findUnique({ where: { id: mkId } });
+    if (!matkul) return res.status(404).json({ message: 'Mata kuliah tidak ditemukan.' });
+
+    // Hapus semua relasi dependent bertingkat secara berurutan sesuai arah foreign keys
+    await prisma.$transaction([
+      // 1. Nilai (tergantung pada KomponenNilai)
+      prisma.nilai.deleteMany({ where: { komponen: { mataKuliahId: mkId } } }),
+      // 2. KomponenNilai (tergantung pada MataKuliah)
+      prisma.komponenNilai.deleteMany({ where: { mataKuliahId: mkId } }),
+      // 3. RekapNilaiAkhir (tergantung pada MataKuliah)
+      prisma.rekapNilaiAkhir.deleteMany({ where: { mataKuliahId: mkId } }),
+      // 4. Materi (tergantung pada MataKuliah)
+      prisma.materi.deleteMany({ where: { mataKuliahId: mkId } }),
+      // 5. Absensi (tergantung pada SesiPraktikum -> JadwalPraktikum)
+      prisma.absensi.deleteMany({ where: { sesi: { jadwal: { mataKuliahId: mkId } } } }),
+      // 6. SesiPraktikum (tergantung pada JadwalPraktikum)
+      prisma.sesiPraktikum.deleteMany({ where: { jadwal: { mataKuliahId: mkId } } }),
+      // 7. PesertaJadwal (tergantung pada JadwalPraktikum)
+      prisma.pesertaJadwal.deleteMany({ where: { jadwal: { mataKuliahId: mkId } } }),
+      // 8. AjuanPindahJadwal (tergantung pada JadwalPraktikum asal & tujuan)
+      prisma.ajuanPindahJadwal.deleteMany({
+        where: {
+          OR: [
+            { jadwalAsal: { mataKuliahId: mkId } },
+            { jadwalTujuan: { mataKuliahId: mkId } }
+          ]
+        }
+      }),
+      // 9. JadwalPraktikum (tergantung pada MataKuliah)
+      prisma.jadwalPraktikum.deleteMany({ where: { mataKuliahId: mkId } }),
+      // 10. Pengampu (tergantung pada MataKuliah)
+      prisma.pengampu.deleteMany({ where: { mataKuliahId: mkId } }),
+      // 11. MataKuliah itu sendiri
+      prisma.mataKuliah.delete({ where: { id: mkId } })
+    ]);
+
+    res.json({ message: 'Mata kuliah berhasil dihapus.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal menghapus mata kuliah.', error: error.message });
   }
 });
 

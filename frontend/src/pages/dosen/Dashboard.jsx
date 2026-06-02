@@ -3,6 +3,12 @@ import DashboardLayout from '../../components/DashboardLayout';
 import { api } from '../../lib/api';
 import { getUser } from '../../lib/auth';
 
+const typeMap = {
+  'praktikum': 'Practicum',
+  'teori': 'Theory',
+  'keduanya': 'Both'
+};
+
 export default function DosenDashboard() {
   const user = getUser();
   const [matkul, setMatkul] = useState([]);
@@ -12,19 +18,18 @@ export default function DosenDashboard() {
   }, []);
 
   return (
-    <DashboardLayout title="Dashboard Dosen">
+    <DashboardLayout title="Lecturer Dashboard">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 style={{ fontSize: '28px' }}>Dashboard Dosen</h1>
-          <p className="page-subtitle">Kelola nilai, materi, dan jadwal mengajar Anda</p>
+          <h1 style={{ fontSize: '28px' }}>Lecturer Dashboard</h1>
+          <p className="page-subtitle">Manage your grades, materials, and teaching schedule</p>
         </div>
       </div>
 
       <div className="grid-4 mb-8">
         <div className="stat-card">
-          <div className="stat-icon blue">📚</div>
           <div>
-            <div className="stat-label">Mata Kuliah</div>
+            <div className="stat-label">Assigned Courses</div>
             <div className="stat-value">{matkul.length}</div>
           </div>
         </div>
@@ -32,15 +37,21 @@ export default function DosenDashboard() {
 
       <div className="card mb-6">
         <div className="card-header">
-          <h3 className="card-title">Mata Kuliah yang Diampu</h3>
+          <h3 className="card-title">Assigned Courses</h3>
         </div>
         {matkul.length === 0 ? (
-          <div className="empty-state"><div className="empty-state-icon">📚</div><p>Belum ada mata kuliah yang diampu</p></div>
+          <div className="empty-state"><p>No assigned courses yet</p></div>
         ) : (
           <div className="table-wrapper">
             <table>
               <thead>
-                <tr><th>Kode</th><th>Nama</th><th>SKS</th><th>Tipe</th><th>Aksi</th></tr>
+                <tr>
+                  <th>Code</th>
+                  <th>Name</th>
+                  <th>Credits</th>
+                  <th>Type</th>
+                  <th>Action</th>
+                </tr>
               </thead>
               <tbody>
                 {matkul.map(mk => (
@@ -48,10 +59,16 @@ export default function DosenDashboard() {
                     <td className="text-mono">{mk.kode}</td>
                     <td><strong>{mk.nama}</strong></td>
                     <td>{mk.sks}</td>
-                    <td><span className="badge badge-dosen">{mk.tipe}</span></td>
-                    <td style={{ display: 'flex', gap: '8px' }}>
-                      <a href={`/dosen/rekap?mk=${mk.id}`} className="btn btn-outline btn-sm">Rekap Nilai</a>
-                      <a href={`/dosen/materi?mk=${mk.id}`} className="btn btn-ghost btn-sm">Materi</a>
+                    <td>
+                      <span className="badge badge-status-active">
+                        {typeMap[mk.tipe] || mk.tipe}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <a href={`/dosen/rekap?mk=${mk.id}`} className="btn btn-outline btn-sm">Grade Recap</a>
+                        <a href={`/dosen/materi?mk=${mk.id}`} className="btn btn-ghost btn-sm">Materials</a>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -63,14 +80,13 @@ export default function DosenDashboard() {
 
       <div className="grid-3">
         {[
-          { href: '/dosen/nilai', icon: '📝', label: 'Input Nilai UTS/UAS', desc: 'Masukkan nilai ujian mahasiswa' },
-          { href: '/dosen/rekap', icon: '📋', label: 'Rekap Nilai', desc: 'Lihat nilai keseluruhan' },
-          { href: '/dosen/materi', icon: '📁', label: 'Upload Materi', desc: 'Upload modul dan referensi' },
+          { href: '/dosen/nilai', label: 'Exam Grade Input', desc: 'Enter student exam grades (UTS/UAS)' },
+          { href: '/dosen/rekap', label: 'Grade Recap', desc: 'View overall student final grades' },
+          { href: '/dosen/materi', label: 'Upload Material', desc: 'Upload modules, slides, and references' },
         ].map(item => (
           <a key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--hairline)', textDecoration: 'none', transition: 'all var(--transition)' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--pacific-blue)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--hairline)'; e.currentTarget.style.transform = 'none'; }}>
-            <span style={{ fontSize: '28px' }}>{item.icon}</span>
             <div>
               <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--ink)' }}>{item.label}</div>
               <div style={{ fontSize: '12px', color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{item.desc}</div>

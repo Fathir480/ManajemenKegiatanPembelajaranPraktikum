@@ -4,7 +4,7 @@
    Ditransformasi: Palet Akademik Cerah & Profesional
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Saira+Condensed:wght@400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
 
 /* ── TOKEN WARNA ──────────────────────────────────────────── */
 :root {
@@ -522,72 +522,157 @@ tbody td { padding: var(--space-3) var(--space-4); color: var(--body); font-size
 .alert-info    { background: var(--info-bg);    color: var(--pacific-blue); border-color: var(--pacific-blue-light); }
 
 /* ── LOGIN PAGE ───────────────────────────────────────────── */
+/* ── LOGIN PAGE (BUGATTI LUXURY DESIGN SYSTEM) ──────────────── */
 .login-page {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  background: var(--canvas);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000000;
+  color: #ffffff;
+  overflow: hidden; /* No scroll */
+  padding: var(--space-4);
 }
-.login-left {
-  background: var(--pacific-blue);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding: var(--space-16);
-  position: relative;
-  overflow: hidden;
+
+.login-form-container {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
 }
-.login-left::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse at 30% 70%, rgba(237,222,164,0.15) 0%, transparent 60%),
-              radial-gradient(ellipse at 80% 20%, rgba(217,229,214,0.10) 0%, transparent 50%);
-}
-.login-brand { position: relative; z-index: 1; text-align: center; }
-.login-brand-name {
-  font-family: var(--font-display);
-  font-size: clamp(28px, 4vw, 42px);
-  color: #fff;
-  letter-spacing: 1px;
-  line-height: 1.2;
-}
-.login-brand-sub {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 3px;
+
+.login-wordmark {
+  font-family: 'Saira Condensed', sans-serif;
+  font-size: 14px;
+  letter-spacing: 6px;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.7);
-  margin-top: var(--space-2);
-}
-.login-tagline {
-  color: rgba(255,255,255,0.85);
-  margin-top: var(--space-6);
-  font-size: 16px;
-  line-height: 1.6;
+  color: #ffffff;
   text-align: center;
-  max-width: 320px;
+  margin-bottom: var(--space-10);
+  user-select: none;
 }
-.login-right {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding: var(--space-16);
-}
-.login-form-container { width: 100%; max-width: 380px; }
+
 .login-form-title {
-  font-family: var(--font-display);
-  font-size: 28px;
+  font-family: 'Saira Condensed', sans-serif;
+  font-size: clamp(28px, 2.5vw, 36px);
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: #ffffff;
   margin-bottom: var(--space-2);
+  text-align: center;
 }
+
 .login-form-sub {
-  color: var(--muted);
-  font-size: 13px;
-  font-family: var(--font-mono);
-  letter-spacing: 0.5px;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 16px;
+  color: #cccccc;
   margin-bottom: var(--space-8);
+  text-align: center;
 }
-.login-form { display: flex; flex-direction: column; gap: var(--space-4); }
-@media (max-width: 768px) {
-  .login-page { grid-template-columns: 1fr; }
-  .login-left { display: none; }
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Custom minimal inputs with bottom-border-only */
+.login-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.login-form .form-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #999999;
+}
+
+.login-form .form-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #3a3a3a;
+  border-radius: 0px; /* Absolutely rectangular */
+  color: #ffffff;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 16px;
+  padding: var(--space-3) 0;
+  outline: none;
+  transition: border-bottom var(--transition);
+}
+
+.login-form .form-input:focus {
+  border-bottom: 1px solid #ffffff;
+  box-shadow: none;
+}
+
+/* Overriding default browser autofill styles for dark mode */
+.login-form .form-input:-webkit-autofill,
+.login-form .form-input:-webkit-autofill:hover, 
+.login-form .form-input:-webkit-autofill:focus, 
+.login-form .form-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #000000 inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  transition: background-color 5000s ease-in-out 0s;
+  font-family: 'EB Garamond', Georgia, serif;
+}
+
+.login-form .form-input::placeholder {
+  color: #666666;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-style: italic;
+  font-size: 15px;
+}
+
+/* Primary CTA styling: Transparent pill with 1px outline */
+.login-form .btn-primary {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid #ffffff;
+  border-radius: 9999px; /* Pill */
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  height: 46px;
+  padding: 0 var(--space-6);
+  margin-top: var(--space-4);
+  transition: transform var(--transition), background var(--transition), color var(--transition);
+}
+
+.login-form .btn-primary:hover:not(:disabled) {
+  background: #ffffff;
+  color: #000000;
+  box-shadow: none;
+  transform: scale(1.02);
+}
+
+.login-form .btn-primary:disabled {
+  border-color: #3a3a3a;
+  color: #666666;
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Minimalist elegant error alert */
+.login-form .alert-error {
+  background: #141414;
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+  border-radius: 0px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 /* ── QR CODE CARD ─────────────────────────────────────────── */
@@ -624,4 +709,466 @@ tbody td { padding: var(--space-3) var(--space-4); color: var(--body); font-size
   20%  { opacity: 1; }
   80%  { opacity: 1; }
   100% { top: 80%; opacity: 0; }
+}
+
+/* ============================================================
+   ADMIN DASHBOARD THEME (ACADEMIC-BUGATTI LUXURY DESIGN)
+   ============================================================ */
+
+/* Redefine CSS variable tokens under .theme-admin to transform colors/fonts globally */
+.theme-admin {
+  --canvas:            #000000;
+  --surface:           #0d0d0d;
+  --surface-soft:      #141414;
+  --surface-card:      #0d0d0d;
+  --hairline:          #262626;
+  --hairline-strong:   #3a3a3a;
+  --ink:               #ffffff;
+  --body:              #cccccc;
+  --body-muted:        #999999;
+  --muted:             #666666;
+
+  /* Typography Fallbacks Fused with Academic Prestige */
+  --font-display:      'Saira Condensed', sans-serif;
+  --font-body:         'EB Garamond', Georgia, serif;
+  --font-mono:         'JetBrains Mono', monospace;
+  
+  background-color: var(--canvas) !important;
+  color: var(--ink) !important;
+}
+
+/* Force dark floors on containers inside admin layout */
+.theme-admin .sidebar,
+.theme-admin .topbar,
+.theme-admin .main-content,
+.theme-admin .modal,
+.theme-admin .page-wrapper {
+  background-color: var(--canvas) !important;
+  color: var(--ink) !important;
+}
+
+/* Custom dark blurred backdrop overlay & clean dark shadow */
+.theme-admin .modal-overlay {
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.theme-admin .modal {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8) !important;
+  border: 1px solid var(--hairline) !important;
+}
+
+/* Apply 0px corners across all panels except buttons */
+.theme-admin .card,
+.theme-admin .stat-card,
+.theme-admin .table-wrapper,
+.theme-admin .form-input,
+.theme-admin .form-select,
+.theme-admin .form-textarea,
+.theme-admin .modal,
+.theme-admin .qr-card,
+.theme-admin .scanner-viewport {
+  border-radius: 0px !important;
+}
+
+/* Sidebar Styling: Sleek pure black border & typography */
+.theme-admin .sidebar {
+  border-right: 1px solid var(--hairline);
+  background-color: #000000 !important;
+}
+
+.theme-admin .sidebar-brand {
+  border-bottom: 1px solid var(--hairline);
+}
+
+.theme-admin .sidebar-brand-name {
+  font-family: var(--font-display) !important;
+  font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--ink);
+}
+
+.theme-admin .sidebar-brand-sub {
+  font-family: var(--font-mono) !important;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--body-muted) !important; /* Monochrome accent */
+}
+
+.theme-admin .sidebar-section-label {
+  font-family: var(--font-mono) !important;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--body-muted) !important;
+}
+
+.theme-admin .sidebar-link {
+  font-family: var(--font-mono) !important;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--body-muted) !important;
+  border-left: 2px solid transparent;
+  transition: all var(--transition);
+}
+
+.theme-admin .sidebar-link:hover {
+  background: var(--surface-soft) !important;
+  color: #ffffff !important;
+  border-left-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.theme-admin .sidebar-link.active {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+  border-left-color: #ffffff !important;
+  font-weight: 500;
+}
+
+.theme-admin .sidebar-footer {
+  border-top: 1px solid var(--hairline);
+}
+
+.theme-admin .sidebar-avatar {
+  background-color: var(--surface-soft) !important;
+  border: 1px solid var(--hairline);
+  color: var(--ink) !important;
+  font-family: var(--font-display) !important;
+  border-radius: 0px !important; /* rectangular avatar */
+}
+
+/* Topbar Styling */
+.theme-admin .topbar {
+  border-bottom: 1px solid var(--hairline);
+  background-color: #000000 !important;
+}
+
+.theme-admin .topbar-title {
+  font-family: var(--font-display) !important;
+  font-size: clamp(20px, 2vw, 24px);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--ink);
+}
+
+/* Stat Cards adjustments (Bugatti Spec-Cell Minimal Format) */
+.theme-admin .stat-card {
+  background-color: var(--surface) !important;
+  border: 1px solid var(--hairline) !important;
+  box-shadow: none !important;
+  padding: var(--space-6) var(--space-8) !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.theme-admin .stat-card:hover {
+  border-color: var(--hairline-strong) !important;
+  transform: translateY(-2px) !important;
+}
+
+.theme-admin .stat-label {
+  font-family: var(--font-mono) !important;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--body-muted);
+  margin-top: 4px;
+}
+
+.theme-admin .stat-value {
+  font-family: var(--font-display) !important;
+  font-weight: 400;
+  font-size: 40px;
+  letter-spacing: 1px;
+  color: #ffffff;
+  line-height: 1.1;
+}
+
+/* Quick Access custom hover arrow animation */
+.theme-admin .quick-access-label {
+  font-family: var(--font-display) !important;
+  font-size: 16px !important;
+  letter-spacing: 1.5px !important;
+  text-transform: uppercase !important;
+  color: #ffffff !important;
+}
+
+.theme-admin .quick-access-desc {
+  font-family: var(--font-body) !important;
+  font-size: 14px !important;
+  color: #999999 !important;
+  font-style: italic !important;
+  margin-top: 4px !important;
+}
+
+.theme-admin .quick-access-arrow {
+  font-family: var(--font-mono) !important;
+  font-size: 18px !important;
+  color: #666666 !important;
+  transition: color var(--transition), transform var(--transition) !important;
+}
+
+.theme-admin .quick-access-card:hover .quick-access-arrow {
+  color: #ffffff !important;
+  transform: translateX(4px) !important;
+}
+
+/* Card Titles and Subtitles */
+.theme-admin h1,
+.theme-admin h2,
+.theme-admin h3 {
+  font-family: var(--font-display) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+  font-weight: 400 !important;
+}
+
+.theme-admin .card-title {
+  font-family: var(--font-display) !important;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.theme-admin .page-subtitle {
+  font-family: var(--font-body) !important;
+  font-size: 15px;
+  color: var(--body-muted) !important;
+  font-style: italic;
+}
+
+/* Buttons outline pill */
+.theme-admin .btn {
+  font-family: var(--font-mono) !important;
+  border-radius: 9999px !important; /* Buttons remain pill */
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 400;
+  height: 40px;
+}
+
+.theme-admin .btn-primary {
+  background: transparent !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--ink) !important;
+}
+
+.theme-admin .btn-primary:hover {
+  background: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: none !important;
+}
+
+/* Tables inside admin theme */
+.theme-admin thead th {
+  font-family: var(--font-mono) !important;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background-color: var(--surface) !important;
+  border-bottom: 1px solid var(--hairline) !important;
+}
+
+.theme-admin tbody tr {
+  border-bottom: 1px solid var(--hairline) !important;
+}
+
+.theme-admin tbody tr:hover {
+  background-color: var(--surface-soft) !important;
+}
+
+.theme-admin tbody td {
+  font-family: var(--font-body) !important;
+  font-size: 16px;
+  color: var(--body) !important;
+}
+
+/* Forms inside admin theme */
+.theme-admin .form-label {
+  font-family: var(--font-mono) !important;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.theme-admin .form-input,
+.theme-admin .form-select,
+.theme-admin .form-textarea {
+  background-color: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--hairline-strong) !important;
+  color: var(--ink) !important;
+  font-family: var(--font-body) !important;
+  font-size: 16px !important;
+  padding: 10px 0 !important;
+}
+
+.theme-admin .form-input:focus,
+.theme-admin .form-select:focus,
+.theme-admin .form-textarea:focus {
+  border-bottom-color: var(--ink) !important;
+  box-shadow: none !important;
+}
+
+.theme-admin .form-input::placeholder {
+  color: var(--muted) !important;
+  font-style: italic;
+}
+
+/* Badges styling custom for dark mode (Transparent with pure text colors) */
+.theme-admin .badge {
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  border-radius: 0px !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+.theme-admin .badge-hadir,
+.theme-admin .badge-status-active,
+.theme-admin .badge-disetujui,
+.theme-admin .badge-dosen,
+.theme-admin .badge-admin { 
+  color: #ffffff !important; 
+  font-weight: 500 !important; 
+}
+.theme-admin .badge-alpa,
+.theme-admin .badge-status-inactive,
+.theme-admin .badge-ditolak { 
+  color: #777777 !important; /* Dimmed / slightly darker grey-white for non-aktif status */
+  font-weight: 500 !important; 
+}
+.theme-admin .badge-izin,
+.theme-admin .badge-menunggu { 
+  background: rgba(212, 130, 10, 0.15) !important; 
+  color: #d4820a !important; 
+  border: 1px solid rgba(212, 130, 10, 0.3) !important; 
+  padding: 2px 10px !important;
+}
+.theme-admin .badge-sakit { 
+  background: rgba(15, 163, 177, 0.15) !important; 
+  color: #0fa3b1 !important; 
+  border: 1px solid rgba(15, 163, 177, 0.3) !important; 
+  padding: 2px 10px !important;
+}
+
+/* Force dark theme option background inside select dropdowns */
+.theme-admin .form-select option {
+  background-color: #0d0d0d !important;
+  color: #ffffff !important;
+}
+
+/* Force modal footer buttons to align side-by-side horizontally (no wrapping) */
+.theme-admin .login-form .flex-end,
+.theme-admin .login-form div[style*="justify-content: flex-end"] {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: var(--space-3) !important;
+  width: 100% !important;
+}
+
+/* Custom Red Outline Delete Button */
+.btn-outline-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1.5px solid var(--danger);
+}
+
+.btn-outline-danger:hover {
+  background: var(--danger);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.theme-admin .btn-outline-danger {
+  background: transparent !important;
+  color: #c0392b !important;
+  border: 1px solid #c0392b !important;
+}
+
+.theme-admin .btn-outline-danger:hover {
+  background: #c0392b !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+/* Elegant Action Icon Buttons (Minimalist Design) */
+.action-icon-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--body-muted);
+  cursor: pointer;
+  transition: color var(--transition), transform var(--transition);
+}
+
+.action-icon-btn:hover {
+  transform: scale(1.15);
+}
+
+.action-icon-btn.action-edit:hover {
+  color: var(--ink);
+}
+
+.action-icon-btn.action-delete:hover {
+  color: var(--danger);
+}
+
+/* Luxury Monochrome overrides for Admin Portal */
+.theme-admin .action-icon-btn {
+  color: #555555 !important; /* Elegant dark grey */
+}
+
+.theme-admin .action-icon-btn.action-edit:hover {
+  color: #ffffff !important; /* Highlights to crisp white */
+}
+
+.theme-admin .action-icon-btn.action-delete:hover {
+  color: #ff4d4d !important; /* Highlights to distinct red */
+}
+
+/* Premium Modal Close Button Styling inside Admin Portal (Borderless & Backgroundless) */
+.theme-admin .modal-close {
+  border: none !important;
+  color: #555555 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.theme-admin .modal-close:hover {
+  background: transparent !important;
+  color: #ff4d4d !important;
+  border: none !important;
+  transform: scale(1.15) !important;
+}
+
+/* Premium Minimalist Alerts inside Admin Portal (Bugatti Spec Vibe) */
+.theme-admin .alert {
+  background-color: var(--surface) !important;
+  color: var(--ink) !important;
+  border-radius: 0px !important; /* Flat geometric borders */
+  font-family: var(--font-mono) !important; /* Clean monospace style */
+  font-size: 13px !important;
+  letter-spacing: 0.5px !important;
+  padding: var(--space-4) !important;
+  box-shadow: none !important;
+}
+
+.theme-admin .alert-success {
+  border: 1px solid #555555 !important; /* Sleek fine dark-grey line for understated monochrome aesthetic */
+  color: #ffffff !important;
+}
+
+.theme-admin .alert-error {
+  border: 1px solid #c0392b !important; /* Sleek fine red line */
+  color: #ffffff !important;
 }

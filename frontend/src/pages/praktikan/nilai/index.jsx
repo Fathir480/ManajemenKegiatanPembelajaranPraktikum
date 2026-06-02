@@ -15,7 +15,7 @@ export default function PraktikanNilai() {
         const data = await api.get('/praktikan/nilai');
         setDataNilai(data);
       } catch (err) {
-        setError('Gagal memuat rekapitulasi buku nilai Anda');
+        setError('Failed to load your gradebook recap');
       } finally {
         setLoading(false);
       }
@@ -24,11 +24,11 @@ export default function PraktikanNilai() {
   }, []);
 
   return (
-    <DashboardLayout title="Buku Nilai Saya">
+    <DashboardLayout title="My Gradebook">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 style={{ fontSize: '28px' }}>Buku Nilai Transparan</h1>
-          <p className="page-subtitle">Pantau seluruh pencapaian nilai tugas, UTS, UAS, asistensi lab, beserta grade kelulusan</p>
+          <h1 style={{ fontSize: '28px' }}>Gradebook</h1>
+          <p className="page-subtitle">Monitor all achievements in tasks, exams, lab assistance, and final grades</p>
         </div>
       </div>
 
@@ -41,26 +41,25 @@ export default function PraktikanNilai() {
           {/* Nilai Akhir Summary */}
           <div className="card mb-8">
             <div className="card-header">
-              <h3 className="card-title">Ringkasan Nilai Akhir Mata Kuliah</h3>
+              <h3 className="card-title">Final Course Grade Summary</h3>
             </div>
             {dataNilai.rekapAkhir.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-state-icon">🏆</div>
-                <p>Belum ada nilai akhir terbit untuk semester ini</p>
+                <p>No final grades published for this semester yet</p>
               </div>
             ) : (
               <div className="table-wrapper">
                 <table>
                   <thead>
                     <tr>
-                      <th>Kode</th>
-                      <th>Mata Kuliah / Praktikum</th>
-                      <th>Praktikum</th>
-                      <th>Asistensi</th>
-                      <th>UTS</th>
-                      <th>UAS</th>
-                      <th>Nilai Akhir</th>
-                      <th>Grade Indeks</th>
+                      <th>Code</th>
+                      <th>Course / Practicum</th>
+                      <th>Practicum</th>
+                      <th>Assistance</th>
+                      <th>Midterm</th>
+                      <th>Final Exam</th>
+                      <th>Final Grade</th>
+                      <th>Letter Grade</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -78,7 +77,7 @@ export default function PraktikanNilai() {
                           </strong>
                         </td>
                         <td>
-                          <span className={`badge ${['A', 'A-', 'B+', 'B'].includes(r.grade) ? 'badge-hadir' : 'badge-alpa'}`} style={{ fontWeight: '600', padding: '4px 10px' }}>
+                          <span className={`badge ${['A', 'A-', 'B+', 'B'].includes(r.grade) ? 'badge-status-active' : 'badge-status-inactive'}`} style={{ fontWeight: '600', padding: '4px 10px' }}>
                             {r.grade || 'E'}
                           </span>
                         </td>
@@ -91,30 +90,29 @@ export default function PraktikanNilai() {
           </div>
 
           {/* Rincian Komponen Nilai */}
-          <div className="nilai-section-title">Log Rincian Nilai Komponen</div>
+          <div className="nilai-section-title">Detailed Grade Log</div>
           
           <div className="card">
             {dataNilai.nilaiDetail.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-state-icon">📝</div>
-                <p>Belum ada rincian nilai tugas atau ujian yang dimasukkan oleh asisten/dosen</p>
+                <p>No detailed task or exam grades entered by assistants/lecturers yet</p>
               </div>
             ) : (
               <div className="table-wrapper">
                 <table>
                   <thead>
                     <tr>
-                      <th>Mata Kuliah</th>
-                      <th>Komponen Penilaian</th>
-                      <th>Bobot</th>
-                      <th>Nilai Diperoleh</th>
-                      <th>Catatan Pendidik</th>
-                      <th>Tanggal Input</th>
+                      <th>Course</th>
+                      <th>Grading Component</th>
+                      <th>Weight</th>
+                      <th>Grade Obtained</th>
+                      <th>Instructor Notes</th>
+                      <th>Input Date</th>
                     </tr>
                   </thead>
                   <tbody>
                     {dataNilai.nilaiDetail.map(n => {
-                      const tgl = new Date(n.diinputPada).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                      const tgl = new Date(n.diinputPada).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
                       return (
                         <tr key={n.id}>
                           <td>
@@ -127,7 +125,7 @@ export default function PraktikanNilai() {
                           <td>
                             <strong>{n.komponen?.nama}</strong>
                             <br />
-                            <span className="badge badge-admin" style={{ fontSize: '10px', textTransform: 'capitalize', marginTop: '4px' }}>
+                            <span className="badge badge-status-active" style={{ fontSize: '10px', textTransform: 'capitalize', marginTop: '4px' }}>
                               {n.komponen?.kategori}
                             </span>
                           </td>

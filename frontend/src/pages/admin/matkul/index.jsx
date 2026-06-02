@@ -33,7 +33,7 @@ export default function KelolaMatkul() {
       const data = await api.get('/admin/matkul');
       setMatkul(data);
     } catch (err) {
-      setError(err.message || 'Gagal mengambil data mata kuliah');
+      setError(err.message || 'Failed to fetch course data');
     } finally {
       setLoading(false);
     }
@@ -45,15 +45,15 @@ export default function KelolaMatkul() {
 
   // --- BULK IMPORT EXCEL LOGIC ---
   const handleDownloadTemplate = () => {
-    const headers = [['Kode', 'Nama', 'SKS', 'Tipe', 'Deskripsi']];
+    const headers = [['Code', 'Name', 'Credits', 'Type', 'Description']];
     const mockData = [
-      ['IF101', 'Algoritma & Pemrograman', 3, 'keduanya', 'Dasar pemrograman komputer'],
-      ['IF102', 'Sistem Operasi', 2, 'praktikum', 'Pengenalan konsep sistem operasi modern']
+      ['IF101', 'Algorithm & Programming', 3, 'both', 'Introduction to computer programming'],
+      ['IF102', 'Operating Systems', 2, 'practicum', 'Modern operating systems concepts']
     ];
     const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...mockData]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
-    XLSX.writeFile(workbook, 'Template_Impor_MataKuliah.xlsx');
+    XLSX.writeFile(workbook, 'Course_Import_Template.xlsx');
   };
 
   const handleBulkUpload = (e) => {
@@ -74,26 +74,34 @@ export default function KelolaMatkul() {
         const rawData = XLSX.utils.sheet_to_json(ws);
 
         if (rawData.length === 0) {
-          setError('Berkas Excel kosong atau format tidak sesuai');
+          setError('Excel file is empty or format is invalid');
           setLoading(false);
           return;
         }
 
-        // Map keys to backend expected key names
-        const items = rawData.map(r => ({
-          kode: String(r['Kode'] || ''),
-          nama: r['Nama'],
-          sks: parseInt(r['SKS'] || '2'),
-          tipe: r['Tipe'] || 'praktikum',
-          deskripsi: r['Deskripsi'] || ''
-        }));
+        // Map keys to backend expected key names (supporting both English and Indonesian templates)
+        const items = rawData.map(r => {
+          let tipe = r['Type'] || r['Tipe'] || 'praktikum';
+          tipe = tipe.toLowerCase().trim();
+          if (tipe === 'both' || tipe === 'keduanya') tipe = 'keduanya';
+          else if (tipe === 'lecture' || tipe === 'kuliah') tipe = 'kuliah';
+          else if (tipe === 'practicum' || tipe === 'practice' || tipe === 'praktikum') tipe = 'praktikum';
+
+          return {
+            kode: String(r['Code'] || r['Kode'] || ''),
+            nama: r['Name'] || r['Nama'],
+            sks: parseInt(r['Credits'] || r['SKS'] || '2'),
+            tipe: tipe,
+            deskripsi: r['Description'] || r['Deskripsi'] || ''
+          };
+        });
 
         const res = await api.post('/admin/matkul/bulk', { items });
         setSuccess(res.message);
         setIsBulkModalOpen(false);
         fetchMatkul();
       } catch (err) {
-        setError(err.message || 'Gagal memproses berkas Excel');
+        setError(err.message || 'Failed to process Excel file');
       } finally {
         setLoading(false);
       }
@@ -144,15 +152,29 @@ export default function KelolaMatkul() {
     try {
       if (modalMode === 'add') {
         await api.post('/admin/matkul', formData);
-        setSuccess('Mata kuliah berhasil ditambahkan');
+        setSuccess('Course successfully added');
       } else {
         await api.put(`/admin/matkul/${selectedMatkul.id}`, formData);
-        setSuccess('Mata kuliah berhasil diperbarui');
+        setSuccess('Course successfully updated');
       }
       setIsModalOpen(false);
       fetchMatkul();
     } catch (err) {
-      setError(err.message || 'Gagal menyimpan data');
+      setError(err.message || 'Failed to save data');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this course? All associated schedules will also be deleted.')) return;
+    
+    try {
+      setError('');
+      setSuccess('');
+      await api.delete(`/admin/matkul/${id}`);
+      setSuccess('Course successfully deleted');
+      fetchMatkul();
+    } catch (err) {
+      setError(err.message || 'Failed to delete course');
     }
   };
 
@@ -162,18 +184,18 @@ export default function KelolaMatkul() {
   );
 
   return (
-    <DashboardLayout title="Mata Kuliah">
+    <DashboardLayout title="Courses">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 style={{ fontSize: '28px' }}>Manajemen Mata Kuliah</h1>
-          <p className="page-subtitle">Kelola kurikulum praktikum, SKS, dan komponen penilaian kelas</p>
+          <h1 style={{ fontSize: '28px' }}>Course Management</h1>
+          <p className="page-subtitle">Manage curriculum, credits, and class grading components</p>
         </div>
         <div className="flex gap-3">
           <button className="btn btn-ghost" onClick={() => setIsBulkModalOpen(true)}>
-            📥 Impor Massal (Excel)
+            Bulk Import (Excel)
           </button>
           <button className="btn btn-primary" onClick={handleOpenAddModal}>
-            ➕ Tambah Matkul
+            Add Course
           </button>
         </div>
       </div>
@@ -184,41 +206,41 @@ export default function KelolaMatkul() {
       <div className="card mb-6">
         <div className="matkul-controls">
           <div className="search-wrapper">
-            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: '14px' }}>🔍</span>
+            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: '14px' }}></span>
             <input 
               type="text" 
               className="form-input" 
-              placeholder="Cari kode atau nama matkul..." 
+              placeholder="Search code or course name..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="text-muted text-mono" style={{ fontSize: '12px' }}>
-            Menampilkan {filteredMatkul.length} mata kuliah
+            Showing {filteredMatkul.length} courses
           </div>
         </div>
 
         {loading ? (
           <div className="flex-center" style={{ minHeight: '200px', flexDirection: 'column', gap: '12px' }}>
             <div className="spinner" />
-            <span className="text-muted text-mono">Memuat data...</span>
+            <span className="text-muted text-mono">Loading data...</span>
           </div>
         ) : filteredMatkul.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">📚</div>
-            <p>Tidak ada mata kuliah ditemukan</p>
+            <div className="empty-state-icon"></div>
+            <p>No courses found</p>
           </div>
         ) : (
           <div className="table-wrapper">
             <table>
               <thead>
                 <tr>
-                  <th>Kode</th>
-                  <th>Nama Mata Kuliah</th>
-                  <th>SKS</th>
-                  <th>Tipe</th>
+                  <th>Code</th>
+                  <th>Course Name</th>
+                  <th>Credits</th>
+                  <th>Type</th>
                   <th>Status</th>
-                  <th>Aksi</th>
+                  <th style={{ width: '80px' }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -229,24 +251,35 @@ export default function KelolaMatkul() {
                       <strong>{m.nama}</strong>
                       <br />
                       <span className="text-muted" style={{ fontSize: '12px' }}>
-                        {m.deskripsi || 'Tidak ada deskripsi'}
+                        {m.deskripsi || 'No description'}
                       </span>
                     </td>
-                    <td>{m.sks} SKS</td>
+                    <td>{m.sks} Credits</td>
                     <td>
-                      <span className="badge badge-dosen">
-                        {m.tipe}
+                      <span className="badge badge-dosen" style={{ textTransform: 'capitalize' }}>
+                        {m.tipe === 'keduanya' ? 'Both' : m.tipe === 'kuliah' ? 'Lecture' : 'Practicum'}
                       </span>
                     </td>
                     <td>
                       <span className={`badge ${m.aktif ? 'badge-hadir' : 'badge-alpa'}`}>
-                        {m.aktif ? 'Aktif' : 'Non-aktif'}
+                        {m.aktif ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td>
-                      <button className="btn btn-outline btn-sm" onClick={() => handleOpenEditModal(m)}>
-                        ✏️ Edit
-                      </button>
+                      <div className="flex gap-3 justify-end" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <button className="action-icon-btn action-edit" onClick={() => handleOpenEditModal(m)} title="Edit">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                          </svg>
+                        </button>
+                        <button className="action-icon-btn action-delete" onClick={() => handleDelete(m.id)} title="Delete">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -261,26 +294,31 @@ export default function KelolaMatkul() {
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: '480px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Impor Mata Kuliah Massal</h3>
-              <button className="modal-close" onClick={() => setIsBulkModalOpen(false)}>×</button>
+              <h3 className="modal-title">Bulk Course Import</h3>
+              <button className="modal-close" onClick={() => setIsBulkModalOpen(false)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             
             <div className="login-form">
               <p style={{ fontSize: '14px', color: 'var(--body)', marginBottom: '16px', lineHeight: 1.6 }}>
-                Unggah file Excel (.xlsx atau .xls) untuk mendaftarkan mata kuliah secara massal. Kolom 'Tipe' bernilai 'kuliah', 'praktikum', atau 'keduanya'.
+                Upload an Excel file (.xlsx or .xls) to register courses in bulk. The 'Type' column can be 'lecture', 'practicum', or 'both'.
               </p>
 
               <button className="btn btn-outline" style={{ width: '100%', marginBottom: '24px', justifyContent: 'center' }} onClick={handleDownloadTemplate}>
-                📥 Unduh Template Excel (.xlsx)
+                Download Excel Template (.xlsx)
               </button>
 
               <div className="form-group" style={{ border: '2px dashed var(--hairline-strong)', padding: '24px', borderRadius: 'var(--radius-lg)', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
-                <span style={{ fontSize: '32px' }}>📊</span>
+                <span style={{ fontSize: '32px' }}></span>
                 <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--ink)', marginTop: '8px' }}>
-                  Pilih Berkas Excel Template Anda
+                  Select Your Excel Template File
                 </div>
                 <div className="text-muted text-mono" style={{ fontSize: '11px', marginTop: '4px' }}>
-                  Hanya mendukung format .xlsx dan .xls
+                  Only supports .xlsx and .xls formats
                 </div>
                 <input 
                   type="file" 
@@ -292,7 +330,7 @@ export default function KelolaMatkul() {
 
               <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsBulkModalOpen(false)}>
-                  Batal
+                  Cancel
                 </button>
               </div>
             </div>
@@ -306,14 +344,19 @@ export default function KelolaMatkul() {
           <div className="modal" style={{ maxWidth: '500px' }}>
             <div className="modal-header">
               <h3 className="modal-title">
-                {modalMode === 'add' ? 'Tambah Mata Kuliah' : 'Edit Mata Kuliah'}
+                {modalMode === 'add' ? 'Add Course' : 'Edit Course'}
               </h3>
-              <button className="modal-close" onClick={() => setIsModalOpen(false)}>×</button>
+              <button className="modal-close" onClick={() => setIsModalOpen(false)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             
             <form onSubmit={handleFormSubmit} className="login-form">
               <div className="form-group">
-                <label className="form-label">Kode Mata Kuliah</label>
+                <label className="form-label">Course Code</label>
                 <input 
                   type="text" 
                   name="kode" 
@@ -322,12 +365,12 @@ export default function KelolaMatkul() {
                   disabled={modalMode === 'edit'} // Kode tidak bisa diedit setelah dibuat
                   value={formData.kode} 
                   onChange={handleFormChange} 
-                  placeholder="Contoh: IF123"
+                  placeholder="Example: IF123"
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Nama Mata Kuliah</label>
+                <label className="form-label">Course Name</label>
                 <input 
                   type="text" 
                   name="nama" 
@@ -340,7 +383,7 @@ export default function KelolaMatkul() {
 
               <div className="grid-2">
                 <div className="form-group">
-                  <label className="form-label">Jumlah SKS</label>
+                  <label className="form-label">Number of Credits</label>
                   <input 
                     type="number" 
                     name="sks" 
@@ -353,22 +396,22 @@ export default function KelolaMatkul() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Tipe Mata Kuliah</label>
+                  <label className="form-label">Course Type</label>
                   <select 
                     name="tipe" 
                     className="form-select" 
                     value={formData.tipe} 
                     onChange={handleFormChange}
                   >
-                    <option value="kuliah">Kuliah</option>
-                    <option value="praktikum">Praktikum</option>
-                    <option value="keduanya">Keduanya</option>
+                    <option value="kuliah">Lecture</option>
+                    <option value="praktikum">Practicum</option>
+                    <option value="keduanya">Both</option>
                   </select>
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Deskripsi Singkat</label>
+                <label className="form-label">Short Description</label>
                 <textarea 
                   name="deskripsi" 
                   className="form-textarea" 
@@ -388,17 +431,17 @@ export default function KelolaMatkul() {
                     style={{ width: '16px', height: '16px' }}
                   />
                   <label htmlFor="aktif" className="form-label" style={{ margin: 0, textTransform: 'none', letterSpacing: 0 }}>
-                    Mata Kuliah Aktif
+                    Active Course
                   </label>
                 </div>
               )}
 
               <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsModalOpen(false)}>
-                  Batal
+                  Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Simpan
+                  Save
                 </button>
               </div>
             </form>

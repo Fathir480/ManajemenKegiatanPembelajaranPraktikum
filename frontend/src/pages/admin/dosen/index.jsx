@@ -14,6 +14,8 @@ export default function KelolaDosen() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
+  const [selectedDosen, setSelectedDosen] = useState(null);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -21,7 +23,8 @@ export default function KelolaDosen() {
     email: '',
     password: '',
     nid: '',
-    spesialisasi: ''
+    spesialisasi: '',
+    aktif: true
   });
 
   const fetchDosen = async () => {
@@ -30,7 +33,7 @@ export default function KelolaDosen() {
       const data = await api.get('/admin/dosen');
       setDosen(data);
     } catch (err) {
-      setError(err.message || 'Gagal mengambil data dosen');
+      setError(err.message || 'Failed to fetch lecturer data');
     } finally {
       setLoading(false);
     }
@@ -41,19 +44,38 @@ export default function KelolaDosen() {
   }, []);
 
   const handleOpenAddModal = () => {
+    setModalMode('add');
     setFormData({
       nama: '',
       email: '',
       password: '',
       nid: '',
-      spesialisasi: ''
+      spesialisasi: '',
+      aktif: true
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (d) => {
+    setModalMode('edit');
+    setSelectedDosen(d);
+    setFormData({
+      nama: d.user?.nama || '',
+      email: d.user?.email || '',
+      password: '', // Kosongkan saat edit
+      nid: d.nid || '',
+      spesialisasi: d.spesialisasi || '',
+      aktif: d.user?.aktif !== undefined ? d.user?.aktif : true
     });
     setIsModalOpen(true);
   };
 
   const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
   };
 
   const handleFormSubmit = async (e) => {
@@ -62,26 +84,45 @@ export default function KelolaDosen() {
     setSuccess('');
     
     try {
-      await api.post('/admin/dosen', formData);
-      setSuccess('Dosen berhasil ditambahkan');
+      if (modalMode === 'add') {
+        await api.post('/admin/dosen', formData);
+        setSuccess('Lecturer successfully added');
+      } else {
+        await api.put(`/admin/dosen/${selectedDosen.id}`, formData);
+        setSuccess('Lecturer successfully updated');
+      }
       setIsModalOpen(false);
       fetchDosen();
     } catch (err) {
-      setError(err.message || 'Gagal menambahkan dosen');
+      setError(err.message || 'Failed to save data');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this lecturer? All associated schedules or subjects will also be affected.')) return;
+    
+    try {
+      setError('');
+      setSuccess('');
+      await api.delete(`/admin/dosen/${id}`);
+      setSuccess('Lecturer successfully deleted');
+      fetchDosen();
+    } catch (err) {
+      setError(err.message || 'Failed to delete lecturer');
     }
   };
 
   // --- BULK IMPORT EXCEL LOGIC ---
   const handleDownloadTemplate = () => {
-    const headers = [['Nama', 'Email', 'NID', 'Spesialisasi']];
+    const headers = [['Name', 'Email', 'NID', 'Specialization']];
     const mockData = [
-      ['Prof. Dr. Ir. H. Anwar', 'anwar@praktikum.ac.id', 'NID-002', 'Rekayasa Perangkat Lunak'],
+      ['Prof. Dr. Ir. H. Anwar', 'anwar@praktikum.ac.id', 'NID-002', 'Software Engineering'],
       ['Siti Fatimah, S.T, M.T', 'fatimah@praktikum.ac.id', 'NID-003', 'Artificial Intelligence']
     ];
     const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...mockData]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
-    XLSX.writeFile(workbook, 'Template_Impor_Dosen.xlsx');
+    XLSX.writeFile(workbook, 'Lecturer_Import_Template.xlsx');
   };
 
   const handleBulkUpload = (e) => {
@@ -102,17 +143,17 @@ export default function KelolaDosen() {
         const rawData = XLSX.utils.sheet_to_json(ws);
 
         if (rawData.length === 0) {
-          setError('Berkas Excel kosong atau format tidak sesuai');
+          setError('Excel file is empty or format is invalid');
           setLoading(false);
           return;
         }
 
-        // Map keys to backend expected key names
+        // Map keys to backend expected key names (supporting both Indonesian and English template headers)
         const items = rawData.map(r => ({
-          nama: r['Nama'],
+          nama: r['Name'] || r['Nama'],
           email: r['Email'],
           nid: String(r['NID'] || ''),
-          spesialisasi: r['Spesialisasi'] || ''
+          spesialisasi: r['Specialization'] || r['Spesialisasi'] || ''
         }));
 
         const res = await api.post('/admin/dosen/bulk', { items });
@@ -120,7 +161,7 @@ export default function KelolaDosen() {
         setIsBulkModalOpen(false);
         fetchDosen();
       } catch (err) {
-        setError(err.message || 'Gagal memproses berkas Excel');
+        setError(err.message || 'Failed to process Excel file');
       } finally {
         setLoading(false);
       }
@@ -135,18 +176,18 @@ export default function KelolaDosen() {
   );
 
   return (
-    <DashboardLayout title="Kelola Dosen">
+    <DashboardLayout title="Manage Lecturers">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 style={{ fontSize: '28px' }}>Manajemen Dosen</h1>
-          <p className="page-subtitle">Kelola Nomor Induk Dosen (NID), spesialisasi mata kuliah, dan impor data massal</p>
+          <h1 style={{ fontSize: '28px' }}>Lecturer Management</h1>
+          <p className="page-subtitle">Manage Lecturer Identification Numbers (NID), subject specializations, and bulk data imports</p>
         </div>
         <div className="flex gap-3">
           <button className="btn btn-ghost" onClick={() => setIsBulkModalOpen(true)}>
-            📥 Impor Massal (Excel)
+            Bulk Import (Excel)
           </button>
           <button className="btn btn-primary" onClick={handleOpenAddModal}>
-            ➕ Tambah Dosen
+            Add Lecturer
           </button>
         </div>
       </div>
@@ -157,39 +198,40 @@ export default function KelolaDosen() {
       <div className="card mb-6">
         <div className="dosen-controls">
           <div className="search-wrapper">
-            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: '14px' }}>🔍</span>
+            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: '14px' }}></span>
             <input 
               type="text" 
               className="form-input" 
-              placeholder="Cari nama, NID, spesialisasi..." 
+              placeholder="Search name, NID, specialization..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="text-muted text-mono" style={{ fontSize: '12px' }}>
-            Menampilkan {filteredDosen.length} dosen
+            Showing {filteredDosen.length} lecturers
           </div>
         </div>
 
         {loading ? (
           <div className="flex-center" style={{ minHeight: '200px', flexDirection: 'column', gap: '12px' }}>
             <div className="spinner" />
-            <span className="text-muted text-mono">Memproses data...</span>
+            <span className="text-muted text-mono">Processing data...</span>
           </div>
         ) : filteredDosen.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">👨‍🏫</div>
-            <p>Tidak ada dosen ditemukan</p>
+            <div className="empty-state-icon"></div>
+            <p>No lecturers found</p>
           </div>
         ) : (
           <div className="table-wrapper">
             <table>
               <thead>
                 <tr>
-                  <th>Nama</th>
+                  <th>Name</th>
                   <th>NID</th>
-                  <th>Spesialisasi</th>
+                  <th>Specialization</th>
                   <th>Status</th>
+                  <th style={{ width: '80px' }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -206,8 +248,24 @@ export default function KelolaDosen() {
                     <td>{d.spesialisasi || '-'}</td>
                     <td>
                       <span className={`badge ${d.user?.aktif ? 'badge-hadir' : 'badge-alpa'}`}>
-                        {d.user?.aktif ? 'Aktif' : 'Non-aktif'}
+                        {d.user?.aktif ? 'Active' : 'Inactive'}
                       </span>
+                    </td>
+                    <td>
+                      <div className="flex gap-3 justify-end" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <button className="action-icon-btn action-edit" onClick={() => handleOpenEditModal(d)} title="Edit">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                          </svg>
+                        </button>
+                        <button className="action-icon-btn action-delete" onClick={() => handleDelete(d.id)} title="Delete">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -222,13 +280,20 @@ export default function KelolaDosen() {
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: '500px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Tambah Dosen</h3>
-              <button className="modal-close" onClick={() => setIsModalOpen(false)}>×</button>
+              <h3 className="modal-title">
+                {modalMode === 'add' ? 'Add Lecturer' : 'Edit Lecturer'}
+              </h3>
+              <button className="modal-close" onClick={() => setIsModalOpen(false)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             
             <form onSubmit={handleFormSubmit} className="login-form">
               <div className="form-group">
-                <label className="form-label">Nama Lengkap</label>
+                <label className="form-label">Full Name</label>
                 <input 
                   type="text" 
                   name="nama" 
@@ -257,14 +322,14 @@ export default function KelolaDosen() {
                   type="password" 
                   name="password" 
                   className="form-input" 
-                  placeholder="Kosongkan jika ingin default: dosen123"
+                  placeholder={modalMode === 'add' ? "Leave empty for default: dosen123" : "Leave empty to keep unchanged"}
                   value={formData.password} 
                   onChange={handleFormChange} 
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">NID (Nomor Induk Dosen)</label>
+                <label className="form-label">NID (Lecturer Identification Number)</label>
                 <input 
                   type="text" 
                   name="nid" 
@@ -276,23 +341,39 @@ export default function KelolaDosen() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Spesialisasi</label>
+                <label className="form-label">Specialization</label>
                 <input 
                   type="text" 
                   name="spesialisasi" 
                   className="form-input" 
-                  placeholder="Contoh: Rekayasa Perangkat Lunak, Data Science" 
+                  placeholder="Example: Software Engineering, Data Science" 
                   value={formData.spesialisasi} 
                   onChange={handleFormChange} 
                 />
               </div>
 
+              {modalMode === 'edit' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                  <input 
+                    type="checkbox" 
+                    name="aktif" 
+                    id="aktif" 
+                    checked={formData.aktif} 
+                    onChange={handleFormChange} 
+                    style={{ width: '16px', height: '16px' }}
+                  />
+                  <label htmlFor="aktif" className="form-label" style={{ margin: 0, textTransform: 'none', letterSpacing: 0 }}>
+                    Active Account / Grant Login
+                  </label>
+                </div>
+              )}
+
               <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsModalOpen(false)}>
-                  Batal
+                  Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Simpan
+                  Save
                 </button>
               </div>
             </form>
@@ -305,26 +386,31 @@ export default function KelolaDosen() {
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: '480px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Impor Dosen Massal</h3>
-              <button className="modal-close" onClick={() => setIsBulkModalOpen(false)}>×</button>
+              <h3 className="modal-title">Bulk Lecturer Import</h3>
+              <button className="modal-close" onClick={() => setIsBulkModalOpen(false)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             
             <div className="login-form">
               <p style={{ fontSize: '14px', color: 'var(--body)', marginBottom: '16px', lineHeight: 1.6 }}>
-                Unggah file Excel (.xlsx atau .xls) untuk mendaftarkan dosen secara massal dengan password default **`dosen123`**.
+                Upload an Excel file (.xlsx or .xls) to register lecturers in bulk with a default password of **`dosen123`**.
               </p>
 
               <button className="btn btn-outline" style={{ width: '100%', marginBottom: '24px', justifyContent: 'center' }} onClick={handleDownloadTemplate}>
-                📥 Unduh Template Excel (.xlsx)
+                Download Excel Template (.xlsx)
               </button>
 
               <div className="form-group" style={{ border: '2px dashed var(--hairline-strong)', padding: '24px', borderRadius: 'var(--radius-lg)', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
-                <span style={{ fontSize: '32px' }}>📊</span>
+                <span style={{ fontSize: '32px' }}></span>
                 <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--ink)', marginTop: '8px' }}>
-                  Pilih Berkas Excel Template Anda
+                  Select Your Excel Template File
                 </div>
                 <div className="text-muted text-mono" style={{ fontSize: '11px', marginTop: '4px' }}>
-                  Hanya mendukung format .xlsx and .xls
+                  Only supports .xlsx and .xls formats
                 </div>
                 <input 
                   type="file" 
@@ -336,7 +422,7 @@ export default function KelolaDosen() {
 
               <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsBulkModalOpen(false)}>
-                  Batal
+                  Cancel
                 </button>
               </div>
             </div>

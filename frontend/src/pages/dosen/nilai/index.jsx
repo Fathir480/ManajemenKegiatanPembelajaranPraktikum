@@ -23,7 +23,7 @@ export default function DosenNilai() {
       setMatkul(data);
       if (data.length > 0) setSelectedMatkulId(data[0].id);
     } catch (err) {
-      setError('Gagal mengambil daftar mata kuliah diampu');
+      setError('Failed to fetch assigned courses list');
     }
   };
 
@@ -46,7 +46,7 @@ export default function DosenNilai() {
         if (dosenComp.length > 0) setSelectedKomponenId(dosenComp[0].id);
         else setSelectedKomponenId('');
       })
-      .catch(() => setError('Gagal memuat komponen penilaian'));
+      .catch(() => setError('Failed to load grading components'));
   }, [selectedMatkulId]);
 
   // Fetch student participants and current grades
@@ -70,7 +70,7 @@ export default function DosenNilai() {
       });
       setGrades(initialGrades);
     } catch (err) {
-      setError('Gagal memuat peserta kelas');
+      setError('Failed to load class participants');
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ export default function DosenNilai() {
     const mGrade = grades[mahasiswaId];
     
     if (mGrade.nilai < 0 || mGrade.nilai > 100) {
-      setError('Nilai harus berada di rentang 0 s/d 100');
+      setError('Grade must be in the range of 0 to 100');
       return;
     }
 
@@ -107,19 +107,19 @@ export default function DosenNilai() {
         nilai: mGrade.nilai,
         catatan: mGrade.catatan
       });
-      setSuccess('Nilai mahasiswa berhasil disimpan!');
+      setSuccess('Student grade saved successfully!');
       fetchPesertaNilai();
     } catch (err) {
-      setError(err.message || 'Gagal menyimpan nilai');
+      setError(err.message || 'Failed to save grade');
     }
   };
 
   return (
-    <DashboardLayout title="Input Nilai Dosen">
+    <DashboardLayout title="Lecturer Grade Input">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 style={{ fontSize: '28px' }}>Input Nilai UTS / UAS</h1>
-          <p className="page-subtitle">Kelola input nilai ujian resmi (UTS, UAS, Tugas Besar) mahasiswa</p>
+          <h1 style={{ fontSize: '28px' }}>Exam Grade Input</h1>
+          <p className="page-subtitle">Manage official examination (UTS, UAS, Term Project) grades for students</p>
         </div>
       </div>
 
@@ -130,13 +130,13 @@ export default function DosenNilai() {
         <div className="nilai-dosen-header">
           <div className="flex gap-4 flex-wrap" style={{ flex: 1 }}>
             <div className="form-group" style={{ minWidth: '220px' }}>
-              <label className="form-label">Mata Kuliah</label>
+              <label className="form-label">Course</label>
               <select
                 className="form-select"
                 value={selectedMatkulId}
                 onChange={(e) => setSelectedMatkulId(e.target.value)}
               >
-                <option value="">-- Pilih Mata Kuliah --</option>
+                <option value="">-- Select Course --</option>
                 {matkul.map(m => (
                   <option key={m.id} value={m.id}>
                     {m.kode} - {m.nama}
@@ -146,7 +146,7 @@ export default function DosenNilai() {
             </div>
 
             <div className="form-group" style={{ minWidth: '220px' }}>
-              <label className="form-label">Komponen Ujian</label>
+              <label className="form-label">Exam Component</label>
               <select
                 className="form-select"
                 value={selectedKomponenId}
@@ -154,11 +154,11 @@ export default function DosenNilai() {
                 disabled={komponen.length === 0}
               >
                 {komponen.length === 0 ? (
-                  <option value="">Tidak ada komponen dosen</option>
+                  <option value="">No lecturer components</option>
                 ) : (
                   komponen.map(c => (
                     <option key={c.id} value={c.id}>
-                      {c.nama} (Bobot: {c.bobot}%)
+                      {c.nama} (Weight: {c.bobot}%)
                     </option>
                   ))
                 )}
@@ -169,26 +169,24 @@ export default function DosenNilai() {
 
         {!selectedMatkulId || !selectedKomponenId ? (
           <div className="empty-state">
-            <div className="empty-state-icon">📝</div>
-            <p>Silakan pilih mata kuliah dan komponen penilaian untuk memulai</p>
+            <p>Please select a course and grading component to begin</p>
           </div>
         ) : loading ? (
           <div className="flex-center" style={{ minHeight: '200px' }}><div className="spinner" /></div>
         ) : peserta.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">👨‍🎓</div>
-            <p>Tidak ada mahasiswa terdaftar di kelas praktikum mata kuliah ini</p>
+            <p>No students registered in this course's practicum classes</p>
           </div>
         ) : (
           <div className="table-wrapper">
             <table>
               <thead>
                 <tr>
-                  <th>Mahasiswa</th>
-                  <th>Stambuk</th>
-                  <th style={{ width: '120px' }}>Nilai Ujian</th>
-                  <th>Catatan / Keterangan</th>
-                  <th style={{ width: '100px' }}>Aksi</th>
+                  <th>Student</th>
+                  <th>Student ID</th>
+                  <th style={{ width: '120px' }}>Exam Grade</th>
+                  <th>Notes / Description</th>
+                  <th style={{ width: '100px' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -216,7 +214,7 @@ export default function DosenNilai() {
                       <input 
                         type="text" 
                         className="form-input" 
-                        placeholder="Keterangan tambahan..."
+                        placeholder="Additional description..."
                         value={grades[p.mahasiswaId]?.catatan ?? ''}
                         onChange={(e) => handleGradeChange(p.mahasiswaId, 'catatan', e.target.value)}
                       />
@@ -226,7 +224,7 @@ export default function DosenNilai() {
                         className="btn btn-primary btn-sm" 
                         onClick={() => handleSaveGrade(p.mahasiswaId)}
                       >
-                        💾 Simpan
+                        Save
                       </button>
                     </td>
                   </tr>

@@ -3,6 +3,13 @@ import DashboardLayout from '../../../components/DashboardLayout';
 import { api } from '../../../lib/api';
 import './absensi.css';
 
+const statusMap = {
+  'hadir': 'Present',
+  'izin': 'Excused',
+  'sakit': 'Sick',
+  'alpa': 'Absent'
+};
+
 export default function PraktikanAbsensi() {
   const [absensi, setAbsensi] = useState({ detail: [], rekap: { hadir: 0, izin: 0, sakit: 0, alpa: 0 } });
   const [loading, setLoading] = useState(true);
@@ -15,7 +22,7 @@ export default function PraktikanAbsensi() {
         const data = await api.get('/praktikan/absensi');
         setAbsensi(data);
       } catch (err) {
-        setError('Gagal memuat rekap absensi Anda');
+        setError('Failed to load your attendance recap');
       } finally {
         setLoading(false);
       }
@@ -28,11 +35,11 @@ export default function PraktikanAbsensi() {
   const persenKehadiran = total > 0 ? Math.round((rekap.hadir / total) * 100) : 0;
 
   return (
-    <DashboardLayout title="Riwayat Kehadiran">
+    <DashboardLayout title="Attendance History">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 style={{ fontSize: '28px' }}>Rekapitulasi Absensi</h1>
-          <p className="page-subtitle">Rincian absensi kehadiran praktikum Anda di setiap pertemuan sesi lab</p>
+          <h1 style={{ fontSize: '28px' }}>Attendance Recap</h1>
+          <p className="page-subtitle">Details of your practicum attendance in each lab session</p>
         </div>
       </div>
 
@@ -45,13 +52,12 @@ export default function PraktikanAbsensi() {
           {/* Rekap Cards */}
           <div className="absensi-rekap-panel">
             {[
-              { label: 'Hadir', val: rekap.hadir, cls: 'badge-hadir', icon: '✅' },
-              { label: 'Izin', val: rekap.izin, cls: 'badge-izin', icon: '📋' },
-              { label: 'Sakit', val: rekap.sakit, cls: 'badge-sakit', icon: '🏥' },
-              { label: 'Alpa', val: rekap.alpa, cls: 'badge-alpa', icon: '❌' },
+              { label: 'Present', val: rekap.hadir, cls: 'badge-status-active' },
+              { label: 'Excused', val: rekap.izin, cls: 'badge-status-inactive' },
+              { label: 'Sick', val: rekap.sakit, cls: 'badge-status-inactive' },
+              { label: 'Absent', val: rekap.alpa, cls: 'badge-status-inactive' },
             ].map(item => (
               <div className="card" key={item.label} style={{ textAlign: 'center', padding: '24px' }}>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>{item.icon}</div>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: '36px', fontWeight: '300', color: 'var(--ink)' }}>
                   {item.val}
                 </div>
@@ -65,15 +71,15 @@ export default function PraktikanAbsensi() {
           {/* Kehadiran Card Percentage */}
           <div className="card mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div>
-              <h3 style={{ fontSize: '18px', fontWeight: '500' }}>Tingkat Kehadiran Kumulatif</h3>
-              <p style={{ fontSize: '14px', color: 'var(--body)' }}>Persentase kehadiran Anda pada seluruh praktikum semester ini</p>
+              <h3 style={{ fontSize: '18px', fontWeight: '500' }}>Cumulative Attendance Rate</h3>
+              <p style={{ fontSize: '14px', color: 'var(--body)' }}>Your attendance percentage across all practicum sessions this semester</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span className="text-mono" style={{ fontSize: '36px', fontWeight: '600', color: 'var(--pacific-blue-dark)' }}>
                 {persenKehadiran}%
               </span>
-              <span className={`badge ${persenKehadiran >= 80 ? 'badge-hadir' : 'badge-alpa'}`} style={{ padding: '4px 12px' }}>
-                {persenKehadiran >= 80 ? 'Memenuhi Syarat' : 'Kurang / Terancam Sanksi'}
+              <span className={`badge ${persenKehadiran >= 80 ? 'badge-status-active' : 'badge-status-inactive'}`} style={{ padding: '4px 12px' }}>
+                {persenKehadiran >= 80 ? 'Eligible' : 'Below Requirement / Warning'}
               </span>
             </div>
           </div>
@@ -81,29 +87,28 @@ export default function PraktikanAbsensi() {
           {/* Riwayat Absensi Table */}
           <div className="card">
             <div className="card-header">
-              <h3 className="card-title">Riwayat Log Sesi</h3>
+              <h3 className="card-title">Session Log History</h3>
             </div>
             {absensi.detail.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-state-icon">✔️</div>
-                <p>Belum ada riwayat pencatatan absensi sesi praktikum</p>
+                <p>No attendance history recorded yet</p>
               </div>
             ) : (
               <div className="table-wrapper">
                 <table>
                   <thead>
                     <tr>
-                      <th>Mata Kuliah / Sesi</th>
-                      <th>Pertemuan</th>
-                      <th>Tanggal</th>
-                      <th>Topik Sesi</th>
-                      <th>Metode Pencatatan</th>
-                      <th>Status Presensi</th>
+                      <th>Course / Session</th>
+                      <th>Session</th>
+                      <th>Date</th>
+                      <th>Session Topic</th>
+                      <th>Recording Method</th>
+                      <th>Attendance Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {absensi.detail.map(a => {
-                      const tgl = new Date(a.sesi?.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                      const tgl = new Date(a.sesi?.tanggal).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
                       return (
                         <tr key={a.id}>
                           <td><strong>{a.sesi?.jadwal?.mataKuliah?.nama}</strong></td>
@@ -111,13 +116,13 @@ export default function PraktikanAbsensi() {
                           <td className="text-mono" style={{ fontSize: '13px' }}>{tgl}</td>
                           <td>{a.sesi?.topik || '-'}</td>
                           <td>
-                            <span className="badge badge-admin" style={{ textTransform: 'capitalize' }}>
-                              {a.metode === 'qr_scan' ? '📱 QR Code Scanner' : '✍️ Input Manual'}
+                            <span className="badge badge-status-active">
+                              {a.metode === 'qr_scan' ? 'QR Code Scan' : 'Manual Input'}
                             </span>
                           </td>
                           <td>
-                            <span className={`badge badge-${a.status}`}>
-                              {a.status}
+                            <span className={`badge ${a.status === 'hadir' ? 'badge-status-active' : 'badge-status-inactive'}`}>
+                              {statusMap[a.status] || a.status}
                             </span>
                           </td>
                         </tr>

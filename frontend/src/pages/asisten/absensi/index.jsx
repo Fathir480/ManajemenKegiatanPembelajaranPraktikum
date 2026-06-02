@@ -4,6 +4,23 @@ import { api } from '../../../lib/api';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import './absensi.css';
 
+const dayMap = {
+  'Senin': 'Monday',
+  'Selasa': 'Tuesday',
+  'Rabu': 'Wednesday',
+  'Kamis': 'Thursday',
+  'Jumat': 'Friday',
+  'Sabtu': 'Saturday',
+  'Minggu': 'Sunday'
+};
+
+const statusMap = {
+  'hadir': 'Present',
+  'izin': 'Excused',
+  'sakit': 'Sick',
+  'alpa': 'Absent'
+};
+
 export default function AsistenAbsensi() {
   const queryParams = new URLSearchParams(window.location.search);
   const initialSesiId = queryParams.get('sesi') || '';
@@ -26,13 +43,12 @@ export default function AsistenAbsensi() {
       const data = await api.get('/asisten/sesi');
       setSesiList(data);
       if (!selectedSesiId && data.length > 0) {
-        // Set default to the latest active session
         const active = data.find(s => !s.ditutupPada);
         if (active) setSelectedSesiId(active.id);
         else setSelectedSesiId(data[0].id);
       }
     } catch (err) {
-      setError('Gagal mengambil daftar sesi');
+      setError('Failed to fetch session list');
     }
   };
 
@@ -45,7 +61,7 @@ export default function AsistenAbsensi() {
       setSessionInfo(data.sesi);
       setPeserta(data.peserta);
     } catch (err) {
-      setError(err.message || 'Gagal memuat peserta sesi');
+      setError(err.message || 'Failed to load session participants');
     } finally {
       setLoading(false);
     }
@@ -77,31 +93,30 @@ export default function AsistenAbsensi() {
         try {
           setError('');
           setSuccess('');
-          // Play a small sound if possible, or trigger success
           const res = await api.post('/asisten/absensi/qr', {
             sesiId: selectedSesiId,
             qrToken: decodedText
           });
-          setSuccess(res.message || 'QR code berhasil discan!');
+          setSuccess(res.message || 'QR code successfully scanned!');
           fetchSessionDetails(selectedSesiId);
         } catch (err) {
-          setError(err.message || 'QR Code gagal diproses');
+          setError(err.message || 'Failed to process QR Code');
         }
-      }, (err) => {
+      }, () => {
         // Silent error
       });
 
       scannerRef.current = scanner;
     } else {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(e => {});
+        scannerRef.current.clear().catch(() => {});
         scannerRef.current = null;
       }
     }
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(e => {});
+        scannerRef.current.clear().catch(() => {});
       }
     };
   }, [scannerActive, selectedSesiId]);
@@ -114,36 +129,35 @@ export default function AsistenAbsensi() {
         sesiId: selectedSesiId,
         mahasiswaId,
         status,
-        keterangan: 'Dicatat manual oleh asisten'
+        keterangan: 'Recorded manually by assistant'
       });
-      setSuccess('Absensi berhasil diperbarui');
+      setSuccess('Attendance successfully updated');
       fetchSessionDetails(selectedSesiId);
     } catch (err) {
-      setError(err.message || 'Gagal mengubah absensi');
+      setError(err.message || 'Failed to update attendance');
     }
   };
 
-  const activeSesi = sesiList.find(s => s.id === parseInt(selectedSesiId));
   const isSessionClosed = sessionInfo?.ditutupPada !== null;
 
   return (
-    <DashboardLayout title="Presensi Praktikum">
+    <DashboardLayout title="Practicum Attendance">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 style={{ fontSize: '28px' }}>Absensi & Scanner QR</h1>
-          <p className="page-subtitle">Rekam kehadiran praktikan melalui kamera scanner atau kontrol manual</p>
+          <h1 style={{ fontSize: '28px' }}>Attendance & QR Scanner</h1>
+          <p className="page-subtitle">Record student attendance via camera scanner or manual control</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <select 
             className="form-select" 
-            style={{ width: '240px' }}
+            style={{ width: '280px' }}
             value={selectedSesiId} 
             onChange={(e) => setSelectedSesiId(e.target.value)}
           >
-            <option value="">-- Pilih Sesi Pertemuan --</option>
+            <option value="">-- Select Pertemuan Session --</option>
             {sesiList.map(s => (
               <option key={s.id} value={s.id}>
-                Pertemuan #{s.pertemuanKe} - {s.jadwal?.mataKuliah?.nama}
+                Session #{s.pertemuanKe} - {s.jadwal?.mataKuliah?.nama}
               </option>
             ))}
           </select>
@@ -156,33 +170,31 @@ export default function AsistenAbsensi() {
       {!selectedSesiId ? (
         <div className="card">
           <div className="empty-state">
-            <div className="empty-state-icon">📷</div>
-            <p>Silakan pilih sesi praktikum terlebih dahulu untuk memulai absensi</p>
+            <p>Please select a session first to begin attendance registration</p>
           </div>
         </div>
       ) : (
         <div className="absensi-container">
-          {/* Kiri: QR Scanner */}
-          <div className="scanner-box">
+          {/* Left: QR Scanner */}
+          <div className="scanner-box" style={{ background: 'var(--surface)', border: '1px solid var(--hairline)', padding: '24px' }}>
             <h3 style={{ fontSize: '18px', marginBottom: '8px', textAlign: 'center' }}>QR Code Scanner</h3>
             <p className="text-muted text-center mb-6" style={{ fontSize: '12px' }}>
-              Minta praktikan menunjukkan QR dari aplikasi mereka
+              Ask student to display their dynamic QR Code
             </p>
 
             {isSessionClosed ? (
-              <div className="alert alert-warning text-center" style={{ fontSize: '13px' }}>
-                🔒 Sesi ini sudah ditutup. Scanner dinonaktifkan.
+              <div className="alert alert-warning text-center" style={{ fontSize: '13px', border: '1px solid var(--hairline-strong)' }}>
+                This session is closed. Scanner is disabled.
               </div>
             ) : (
               <div>
-                {/* Element reader selalu ada di DOM agar tidak terjadi race condition mounting */}
                 <div className="scanner-container mb-4" style={{ display: scannerActive ? 'block' : 'none' }}>
                   <div id="reader" />
                 </div>
 
                 {!scannerActive && (
-                  <div className="scanner-container flex-center mb-4" style={{ height: '240px', background: 'var(--surface-soft)' }}>
-                    <span style={{ fontSize: '48px', opacity: 0.3 }}>📷</span>
+                  <div className="scanner-container flex-center mb-4" style={{ height: '240px', background: 'var(--surface-soft)', border: '1px solid var(--hairline)' }}>
+                    <span style={{ fontSize: '14px', color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>Camera Off</span>
                   </div>
                 )}
 
@@ -191,22 +203,22 @@ export default function AsistenAbsensi() {
                   style={{ width: '100%', justifyContent: 'center' }}
                   onClick={() => setScannerActive(!scannerActive)}
                 >
-                  {scannerActive ? '⏹ Matikan Kamera' : '🎥 Aktifkan Kamera Scanner'}
+                  {scannerActive ? 'Disable Camera' : 'Enable Scanner Camera'}
                 </button>
               </div>
             )}
             
             {sessionInfo && (
               <div style={{ marginTop: '24px', borderTop: '1px solid var(--hairline)', paddingTop: '16px' }}>
-                <div className="text-label" style={{ marginBottom: '8px' }}>Rincian Sesi</div>
+                <div className="text-label" style={{ marginBottom: '8px' }}>Session Details</div>
                 <div style={{ fontSize: '13px', lineHeight: 1.6 }}>
-                  <div><strong>Topik:</strong> {sessionInfo.topik}</div>
-                  <div><strong>Tanggal:</strong> {new Date(sessionInfo.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
-                  <div><strong>Pertemuan:</strong> Ke-{sessionInfo.pertemuanKe}</div>
+                  <div><strong>Topic:</strong> {sessionInfo.topik}</div>
+                  <div><strong>Date:</strong> {new Date(sessionInfo.tanggal).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                  <div><strong>Session Number:</strong> #{sessionInfo.pertemuanKe}</div>
                   <div>
                     <strong>Status:</strong>{' '}
-                    <span className={`badge ${isSessionClosed ? 'badge-alpa' : 'badge-hadir'}`}>
-                      {isSessionClosed ? 'Ditutup' : 'Terbuka / Aktif'}
+                    <span className={`badge ${isSessionClosed ? 'badge-status-inactive' : 'badge-status-active'}`}>
+                      {isSessionClosed ? 'Closed' : 'Active / Open'}
                     </span>
                   </div>
                 </div>
@@ -214,12 +226,12 @@ export default function AsistenAbsensi() {
             )}
           </div>
 
-          {/* Kanan: Daftar Mahasiswa & Absensi Manual */}
+          {/* Right: Students Table & Manual Attendance */}
           <div className="card">
             <div className="card-header">
-              <h3 className="card-title">Daftar Kehadiran Praktikan</h3>
+              <h3 className="card-title">Student Attendance List</h3>
               <div className="text-muted text-mono" style={{ fontSize: '12px' }}>
-                Total: {peserta.length} Mahasiswa
+                Total: {peserta.length} Students
               </div>
             </div>
 
@@ -227,20 +239,19 @@ export default function AsistenAbsensi() {
               <div className="flex-center" style={{ minHeight: '200px' }}><div className="spinner" /></div>
             ) : peserta.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-state-icon">👨‍🎓</div>
-                <p>Tidak ada mahasiswa terdaftar di jadwal kelas ini</p>
+                <p>No students registered for this class schedule</p>
               </div>
             ) : (
               <div className="table-wrapper">
                 <table>
                   <thead>
                     <tr>
-                      <th>Mahasiswa</th>
-                      <th>Stambuk</th>
-                      <th>Metode</th>
-                      <th>Waktu Absen</th>
-                      <th>Status Absen</th>
-                      <th>Ubah Status</th>
+                      <th>Student</th>
+                      <th>Student ID</th>
+                      <th>Method</th>
+                      <th>Check-in Time</th>
+                      <th>Status</th>
+                      <th>Modify Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -256,8 +267,8 @@ export default function AsistenAbsensi() {
                         <td className="text-mono">{p.stambuk}</td>
                         <td>
                           {p.absensi ? (
-                            <span className="badge badge-admin" style={{ textTransform: 'capitalize' }}>
-                              {p.absensi.metode === 'qr_scan' ? '📱 QR Code' : '✍️ Manual'}
+                            <span className="badge badge-status-active">
+                              {p.absensi.metode === 'qr_scan' ? 'QR Code' : 'Manual'}
                             </span>
                           ) : (
                             <span className="text-muted">-</span>
@@ -265,14 +276,14 @@ export default function AsistenAbsensi() {
                         </td>
                         <td className="text-mono" style={{ fontSize: '12px' }}>
                           {p.absensi?.waktuAbsen ? (
-                            new Date(p.absensi.waktuAbsen).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                            new Date(p.absensi.waktuAbsen).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
                           ) : (
                             <span className="text-muted">-</span>
                           )}
                         </td>
                         <td>
-                          <span className={`badge badge-${p.absensi?.status || 'alpa'}`}>
-                            {p.absensi?.status || 'Alpa'}
+                          <span className={`badge ${p.absensi?.status === 'hadir' ? 'badge-status-active' : 'badge-status-inactive'}`}>
+                            {statusMap[p.absensi?.status || 'alpa']}
                           </span>
                         </td>
                         <td>
@@ -292,7 +303,7 @@ export default function AsistenAbsensi() {
                                   }}
                                   onClick={() => handleManualAbsensi(p.mahasiswaId, st)}
                                 >
-                                  {st}
+                                  {statusMap[st]}
                                 </button>
                               );
                             })}

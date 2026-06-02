@@ -5,13 +5,22 @@ import * as XLSX from 'xlsx';
 import './jadwal.css';
 
 const sessions = [
-  { id: 1, name: 'Sesi 1', time: '07:00 - 09:30', jamMulai: '07:00', jamSelesai: '09:30' },
-  { id: 2, name: 'Sesi 2', time: '09:40 - 12:10', jamMulai: '09:40', jamSelesai: '12:10' },
-  { id: 3, name: 'Sesi 3', time: '13:00 - 15:30', jamMulai: '13:00', jamSelesai: '15:30' },
-  { id: 4, name: 'Sesi 4', time: '15:40 - 18:10', jamMulai: '15:40', jamSelesai: '18:10' }
+  { id: 1, name: 'Session 1', time: '07:00 - 09:30', jamMulai: '07:00', jamSelesai: '09:30' },
+  { id: 2, name: 'Session 2', time: '09:40 - 12:10', jamMulai: '09:40', jamSelesai: '12:10' },
+  { id: 3, name: 'Session 3', time: '13:00 - 15:30', jamMulai: '13:00', jamSelesai: '15:30' },
+  { id: 4, name: 'Session 4', time: '15:40 - 18:10', jamMulai: '15:40', jamSelesai: '18:10' }
 ];
 
 const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+const dayIndoToEng = {
+  'Senin': 'Monday',
+  'Selasa': 'Tuesday',
+  'Rabu': 'Wednesday',
+  'Kamis': 'Thursday',
+  'Jumat': 'Friday',
+  'Sabtu': 'Saturday'
+};
 
 const classOptions = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'];
 
@@ -37,7 +46,7 @@ export default function KelolaJadwal() {
     sesi: '1',
     jamMulai: '07:00',
     jamSelesai: '09:30',
-    semester: '2024/2025 Genap',
+    semester: '2024/2025 Even',
     kapasitasGrup: 30,
     kelas: 'A1'
   });
@@ -56,7 +65,7 @@ export default function KelolaJadwal() {
       setAsisten(asistenData);
       setRuangan(ruanganData);
     } catch (err) {
-      setError(err.message || 'Gagal mengambil data penjadwalan');
+      setError(err.message || 'Failed to fetch scheduling data');
     } finally {
       setLoading(false);
     }
@@ -75,7 +84,7 @@ export default function KelolaJadwal() {
       sesi: '1',
       jamMulai: '07:00',
       jamSelesai: '09:30',
-      semester: '2024/2025 Genap',
+      semester: '2024/2025 Even',
       kapasitasGrup: 30,
       kelas: 'A1'
     });
@@ -106,16 +115,16 @@ export default function KelolaJadwal() {
     
     try {
       const res = await api.post('/admin/jadwal', formData);
-      setSuccess(res.message || 'Jadwal praktikum berhasil ditambahkan');
+      setSuccess(res.message || 'Practicum schedule successfully added');
       setIsModalOpen(false);
       fetchData();
     } catch (err) {
-      setError(err.message || 'Gagal menambahkan jadwal');
+      setError(err.message || 'Failed to add schedule');
     }
   };
 
   const handleExportExcel = () => {
-    const headers = ['Sesi / Waktu', ...days];
+    const headers = ['Session / Time', ...days.map(day => dayIndoToEng[day] || day)];
     const rows = sessions.map(sesi => {
       const rowData = [`${sesi.name} (${sesi.time})`];
       days.forEach(day => {
@@ -125,7 +134,7 @@ export default function KelolaJadwal() {
         );
         if (cellJadwal.length > 0) {
           const text = cellJadwal.map(j => 
-            `[${j.mataKuliah?.kode}] ${j.mataKuliah?.nama}\nKelas: ${j.kelas || '-'}\nLab: ${j.ruangan?.nama || '-'}\nAsisten: ${j.asisten?.user?.nama || '-'}`
+            `[${j.mataKuliah?.kode}] ${j.mataKuliah?.nama}\nClass: ${j.kelas || '-'}\nLab: ${j.ruangan?.nama || '-'}\nAssistant: ${j.asisten?.user?.nama || '-'}`
           ).join('\n\n');
           rowData.push(text);
         } else {
@@ -150,8 +159,8 @@ export default function KelolaJadwal() {
     worksheet['!cols'] = wscols;
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Jadwal Mingguan');
-    XLSX.writeFile(workbook, 'Matriks_Jadwal_Praktikum.xlsx');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Weekly Schedule');
+    XLSX.writeFile(workbook, 'Practicum_Schedule_Matrix.xlsx');
   };
 
   const filteredJadwal = jadwal.filter(j => 
@@ -159,22 +168,23 @@ export default function KelolaJadwal() {
     j.mataKuliah?.kode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     j.asisten?.user?.nama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     j.hari?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    dayIndoToEng[j.hari]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     j.kelas?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <DashboardLayout title="Jadwal Praktikum">
+    <DashboardLayout title="Practicum Schedule">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 style={{ fontSize: '28px' }}>Jadwal Praktikum</h1>
-          <p className="page-subtitle">Kelola jam sesi lab, pembagian asisten, pembagian kelas, dan pencegahan bentrok jadwal</p>
+          <h1 style={{ fontSize: '28px' }}>Practicum Schedule</h1>
+          <p className="page-subtitle">Manage lab session hours, assistant assignments, class divisions, and schedule conflict prevention</p>
         </div>
         <div className="flex gap-3">
           <button className="btn btn-ghost" onClick={handleExportExcel}>
-            📊 Ekspor Matriks (Excel)
+            Export Matrix (Excel)
           </button>
           <button className="btn btn-primary" onClick={handleOpenAddModal}>
-            ➕ Buat Jadwal Baru
+            Create New Schedule
           </button>
         </div>
       </div>
@@ -185,11 +195,11 @@ export default function KelolaJadwal() {
       <div className="card mb-6">
         <div className="jadwal-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
           <div className="search-wrapper" style={{ position: 'relative', width: '320px' }}>
-            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: '14px' }}>🔍</span>
+            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: '14px' }}></span>
             <input 
               type="text" 
               className="form-input" 
-              placeholder="Cari matkul, asisten, kelas, hari..." 
+              placeholder="Search course, assistant, class, day..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ paddingLeft: '36px', width: '100%' }}
@@ -202,14 +212,14 @@ export default function KelolaJadwal() {
               onClick={() => setViewMode('grid')}
               style={{ fontSize: '12px', fontWeight: 600 }}
             >
-              📅 Grid Matriks Excel
+              Excel Grid Matrix
             </button>
             <button 
               className={`btn btn-sm ${viewMode === 'table' ? 'btn-primary' : 'btn-ghost'}`} 
               onClick={() => setViewMode('table')}
               style={{ fontSize: '12px', fontWeight: 600 }}
             >
-              📋 Daftar Tabel
+              Table List
             </button>
           </div>
         </div>
@@ -217,7 +227,7 @@ export default function KelolaJadwal() {
         {loading ? (
           <div className="flex-center" style={{ minHeight: '300px', flexDirection: 'column', gap: '12px' }}>
             <div className="spinner" />
-            <span className="text-muted text-mono">Membuat tampilan penjadwalan...</span>
+            <span className="text-muted text-mono">Building schedule view...</span>
           </div>
         ) : viewMode === 'grid' ? (
           /* MATRIX GRID VIEW */
@@ -225,9 +235,9 @@ export default function KelolaJadwal() {
             <table className="matrix-table">
               <thead>
                 <tr>
-                  <th style={{ minWidth: '150px', background: 'var(--surface-strong)', color: 'var(--ink)' }}>Sesi / Hari</th>
+                  <th style={{ minWidth: '150px', background: 'var(--surface-strong)', color: 'var(--ink)' }}>Session / Day</th>
                   {days.map(day => (
-                    <th key={day} style={{ minWidth: '200px', textAlign: 'center', background: 'var(--surface-strong)', color: 'var(--ink)' }}>{day}</th>
+                    <th key={day} style={{ minWidth: '200px', textAlign: 'center', background: 'var(--surface-strong)', color: 'var(--ink)' }}>{dayIndoToEng[day] || day}</th>
                   ))}
                 </tr>
               </thead>
@@ -262,19 +272,19 @@ export default function KelolaJadwal() {
                                   <div key={j.id} className="matrix-card" style={borderStyle}>
                                     <div className="matrix-card-header">
                                       <span className="matrix-card-code">{j.mataKuliah?.kode}</span>
-                                      <span className="matrix-card-class">Kelas {j.kelas || '-'}</span>
+                                      <span className="matrix-card-class">Class {j.kelas || '-'}</span>
                                     </div>
                                     <div className="matrix-card-title">{j.mataKuliah?.nama}</div>
                                     <div className="matrix-card-details">
-                                      <div className="matrix-detail-item">🔑 {j.ruangan?.nama || 'Lab TBD'}</div>
-                                      <div className="matrix-detail-item">👤 {j.asisten?.user?.nama || 'Tanpa Asisten'}</div>
-                                      <div className="matrix-detail-item">👥 {j.kapasitasGrup} Mhs Max</div>
+                                      <div className="matrix-detail-item">Lab: {j.ruangan?.nama || 'Lab TBD'}</div>
+                                      <div className="matrix-detail-item">Asst: {j.asisten?.user?.nama || 'No Assistant'}</div>
+                                      <div className="matrix-detail-item">Cap: {j.kapasitasGrup} Max Students</div>
                                     </div>
                                   </div>
                                 );
                               })
                             ) : (
-                              <div className="matrix-empty-slot">Kosong</div>
+                              <div className="matrix-empty-slot">Empty</div>
                             )}
                           </div>
                         </td>
@@ -289,20 +299,20 @@ export default function KelolaJadwal() {
           /* STANDARD TABLE LIST VIEW */
           filteredJadwal.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">🗓️</div>
-              <p>Tidak ada jadwal ditemukan</p>
+              <div className="empty-state-icon"></div>
+              <p>No schedules found</p>
             </div>
           ) : (
             <div className="table-wrapper">
               <table>
                 <thead>
                   <tr>
-                    <th>Mata Kuliah / Praktikum</th>
-                    <th>Asisten Bertugas</th>
-                    <th>Hari & Jam</th>
-                    <th>Kelas</th>
-                    <th>Ruangan</th>
-                    <th>Kapasitas</th>
+                    <th>Course / Practicum</th>
+                    <th>Assigned Assistant</th>
+                    <th>Day & Time</th>
+                    <th>Class</th>
+                    <th>Room</th>
+                    <th>Capacity</th>
                     <th>Semester</th>
                   </tr>
                 </thead>
@@ -326,12 +336,12 @@ export default function KelolaJadwal() {
                             </span>
                           </div>
                         ) : (
-                          <span className="text-muted">Belum ada asisten</span>
+                          <span className="text-muted">No assistant assigned</span>
                         )}
                       </td>
                       <td>
                         <span className="badge badge-hadir" style={{ marginRight: '8px' }}>
-                          {j.hari}
+                          {dayIndoToEng[j.hari] || j.hari}
                         </span>
                         <span className="text-mono">
                           {j.jamMulai} - {j.jamSelesai}
@@ -343,7 +353,7 @@ export default function KelolaJadwal() {
                         </span>
                       </td>
                       <td>{j.ruangan?.nama || '-'}</td>
-                      <td>{j.kapasitasGrup} mhs</td>
+                      <td>{j.kapasitasGrup} students</td>
                       <td className="text-mono" style={{ fontSize: '12px' }}>{j.semester}</td>
                     </tr>
                   ))}
@@ -359,13 +369,18 @@ export default function KelolaJadwal() {
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: '560px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Buat Jadwal Baru</h3>
-              <button className="modal-close" onClick={() => setIsModalOpen(false)}>×</button>
+              <h3 className="modal-title">Create New Schedule</h3>
+              <button className="modal-close" onClick={() => setIsModalOpen(false)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             
             <form onSubmit={handleFormSubmit} className="login-form">
               <div className="form-group">
-                <label className="form-label">Mata Kuliah / Praktikum</label>
+                <label className="form-label">Course / Practicum</label>
                 <select 
                   name="mataKuliahId" 
                   className="form-select" 
@@ -373,7 +388,7 @@ export default function KelolaJadwal() {
                   value={formData.mataKuliahId} 
                   onChange={handleFormChange}
                 >
-                  <option value="" disabled>-- Pilih Mata Kuliah --</option>
+                  <option value="" disabled>-- Select Course --</option>
                   {matkul.map(m => (
                     <option key={m.id} value={m.id}>{m.kode} - {m.nama}</option>
                   ))}
@@ -382,14 +397,14 @@ export default function KelolaJadwal() {
 
               <div className="grid-2">
                 <div className="form-group">
-                  <label className="form-label">Asisten Bertugas (Opsional)</label>
+                  <label className="form-label">Assigned Assistant (Optional)</label>
                   <select 
                     name="asisenId" 
                     className="form-select" 
                     value={formData.asisenId} 
                     onChange={handleFormChange}
                   >
-                    <option value="">-- Pilih Asisten --</option>
+                    <option value="">-- Select Assistant --</option>
                     {asisten.map(a => (
                       <option key={a.id} value={a.id}>{a.user?.nama} ({a.stambuk})</option>
                     ))}
@@ -397,14 +412,14 @@ export default function KelolaJadwal() {
                 </div>
                 
                 <div className="form-group">
-                  <label className="form-label">Ruangan Lab (Opsional)</label>
+                  <label className="form-label">Lab Room (Optional)</label>
                   <select 
                     name="ruanganId" 
                     className="form-select" 
                     value={formData.ruanganId} 
                     onChange={handleFormChange}
                   >
-                    <option value="">-- Pilih Ruangan --</option>
+                    <option value="">-- Select Room --</option>
                     {ruangan.map(r => (
                       <option key={r.id} value={r.id}>{r.nama} (Kap: {r.kapasitas})</option>
                     ))}
@@ -414,7 +429,7 @@ export default function KelolaJadwal() {
 
               <div className="grid-2">
                 <div className="form-group">
-                  <label className="form-label">Hari</label>
+                  <label className="form-label">Day</label>
                   <select 
                     name="hari" 
                     className="form-select" 
@@ -422,17 +437,17 @@ export default function KelolaJadwal() {
                     value={formData.hari} 
                     onChange={handleFormChange}
                   >
-                    <option value="Senin">Senin</option>
-                    <option value="Selasa">Selasa</option>
-                    <option value="Rabu">Rabu</option>
-                    <option value="Kamis">Kamis</option>
-                    <option value="Jumat">Jumat</option>
-                    <option value="Sabtu">Sabtu</option>
+                    <option value="Senin">Monday</option>
+                    <option value="Selasa">Tuesday</option>
+                    <option value="Rabu">Wednesday</option>
+                    <option value="Kamis">Thursday</option>
+                    <option value="Jumat">Friday</option>
+                    <option value="Sabtu">Saturday</option>
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Pilih Sesi Praktikum</label>
+                  <label className="form-label">Select Practicum Session</label>
                   <select 
                     name="sesi" 
                     className="form-select" 
@@ -449,7 +464,7 @@ export default function KelolaJadwal() {
 
               <div className="grid-2">
                 <div className="form-group">
-                  <label className="form-label">Jam Mulai</label>
+                  <label className="form-label">Start Time</label>
                   <input 
                     type="text" 
                     name="jamMulai" 
@@ -461,7 +476,7 @@ export default function KelolaJadwal() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Jam Selesai</label>
+                  <label className="form-label">End Time</label>
                   <input 
                     type="text" 
                     name="jamSelesai" 
@@ -476,7 +491,7 @@ export default function KelolaJadwal() {
 
               <div className="grid-3">
                 <div className="form-group">
-                  <label className="form-label">Kelas</label>
+                  <label className="form-label">Class</label>
                   <select
                     name="kelas"
                     className="form-select"
@@ -490,7 +505,7 @@ export default function KelolaJadwal() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Kapasitas Grup</label>
+                  <label className="form-label">Group Capacity</label>
                   <input 
                     type="number" 
                     name="kapasitasGrup" 
@@ -516,10 +531,10 @@ export default function KelolaJadwal() {
 
               <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsModalOpen(false)}>
-                  Batal
+                  Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Simpan Jadwal
+                  Save Schedule
                 </button>
               </div>
             </form>

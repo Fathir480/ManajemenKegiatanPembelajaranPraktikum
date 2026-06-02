@@ -28,28 +28,27 @@ export default function AdminDashboard() {
   }, []);
 
   const statCards = [
-    { label: 'Total Mahasiswa', value: stats.mahasiswa, icon: '👨‍🎓', color: 'blue' },
-    { label: 'Total Dosen', value: stats.dosen, icon: '👨‍🏫', color: 'green' },
-    { label: 'Mata Kuliah Aktif', value: stats.matkul, icon: '📚', color: 'yellow' },
-    { label: 'Ajuan Menunggu', value: stats.ajuan, icon: '🔔', color: 'orange' },
+    { label: 'Total Students', value: stats.mahasiswa },
+    { label: 'Total Lecturers', value: stats.dosen },
+    { label: 'Active Courses', value: stats.matkul },
+    { label: 'Pending Requests', value: stats.ajuan },
   ];
 
   return (
-    <DashboardLayout title="Dashboard Admin">
+    <DashboardLayout title="Admin Dashboard">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 style={{ fontSize: '28px' }}>Selamat Datang, {user?.nama?.split(' ')[0]}</h1>
-          <p className="page-subtitle">Ringkasan sistem manajemen kegiatan praktikum</p>
+          <h1 style={{ fontSize: '28px' }}>Welcome Back, {user?.nama?.split(' ')[0]}</h1>
+          <p className="page-subtitle">Integrated Academic Management System</p>
         </div>
       </div>
 
       <div className="grid-4 mb-8">
         {statCards.map(card => (
           <div className="stat-card" key={card.label}>
-            <div className={`stat-icon ${card.color}`}>{card.icon}</div>
             <div>
-              <div className="stat-label">{card.label}</div>
               <div className="stat-value">{card.value}</div>
+              <div className="stat-label">{card.label}</div>
             </div>
           </div>
         ))}
@@ -57,32 +56,32 @@ export default function AdminDashboard() {
 
       <div className="card">
         <div className="card-header">
-          <h3 className="card-title">Akses Cepat</h3>
+          <h3 className="card-title">Quick Access</h3>
         </div>
-        <div className="grid-3" style={{ gap: '12px' }}>
+        <div className="grid-3" style={{ gap: '16px' }}>
           {[
-            { href: '/admin/mahasiswa', icon: '👨‍🎓', label: 'Kelola Mahasiswa', desc: 'CRUD data & stambuk' },
-            { href: '/admin/dosen', icon: '👨‍🏫', label: 'Kelola Dosen', desc: 'CRUD data & NID' },
-            { href: '/admin/jadwal', icon: '🗓️', label: 'Kelola Jadwal', desc: 'Atur jadwal praktikum' },
-            { href: '/admin/matkul', icon: '📚', label: 'Mata Kuliah', desc: 'Manajemen matkul' },
-            { href: '/admin/ajuan', icon: '✅', label: 'Validasi Ajuan', desc: `${stats.ajuan} menunggu persetujuan` },
+            { href: '/admin/mahasiswa', label: 'Manage Students', desc: 'Student directories & records' },
+            { href: '/admin/dosen', label: 'Manage Lecturers', desc: 'Lecturer directories & NIDs' },
+            { href: '/admin/jadwal', label: 'Manage Schedules', desc: 'Practical slots & session times' },
+            { href: '/admin/matkul', label: 'Course Management', desc: 'Curriculum structures' },
+            { href: '/admin/ajuan', label: 'Validate Requests', desc: `${stats.ajuan} waiting for review` },
           ].map(item => (
             <a key={item.href} href={item.href}
+              className="card quick-access-card"
               style={{
-                display: 'flex', alignItems: 'center', gap: '12px',
-                padding: '16px', borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--hairline)', textDecoration: 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '20px 24px', textDecoration: 'none',
                 transition: 'all var(--transition)',
                 background: 'var(--surface-soft)',
               }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--pacific-blue)'}
+              onMouseEnter={e => e.currentTarget.style.borderColor = '#ffffff'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--hairline)'}
             >
-              <span style={{ fontSize: '24px' }}>{item.icon}</span>
-              <div>
-                <div style={{ fontWeight: 500, fontSize: '14px', color: 'var(--ink)' }}>{item.label}</div>
-                <div style={{ fontSize: '12px', color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{item.desc}</div>
+              <div style={{ flex: 1 }}>
+                <div className="quick-access-label">{item.label}</div>
+                <div className="quick-access-desc">{item.desc}</div>
               </div>
+              <span className="quick-access-arrow">→</span>
             </a>
           ))}
         </div>

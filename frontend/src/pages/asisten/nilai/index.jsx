@@ -3,6 +3,16 @@ import DashboardLayout from '../../../components/DashboardLayout';
 import { api } from '../../../lib/api';
 import './nilai.css';
 
+const dayMap = {
+  'Senin': 'Monday',
+  'Selasa': 'Tuesday',
+  'Rabu': 'Wednesday',
+  'Kamis': 'Thursday',
+  'Jumat': 'Friday',
+  'Sabtu': 'Saturday',
+  'Minggu': 'Sunday'
+};
+
 export default function AsistenNilai() {
   const [jadwal, setJadwal] = useState([]);
   const [komponen, setKomponen] = useState([]);
@@ -23,7 +33,7 @@ export default function AsistenNilai() {
       setJadwal(data);
       if (data.length > 0) setSelectedJadwalId(data[0].id);
     } catch (err) {
-      setError('Gagal mengambil daftar kelas diampu');
+      setError('Failed to fetch assigned classes list');
     }
   };
 
@@ -48,7 +58,7 @@ export default function AsistenNilai() {
           if (asistenComp.length > 0) setSelectedKomponenId(asistenComp[0].id);
           else setSelectedKomponenId('');
         })
-        .catch(() => setError('Gagal memuat komponen penilaian'));
+        .catch(() => setError('Failed to load grading components'));
     }
   }, [selectedJadwalId, jadwal]);
 
@@ -74,7 +84,7 @@ export default function AsistenNilai() {
       });
       setGrades(initialGrades);
     } catch (err) {
-      setError('Gagal memuat data nilai peserta');
+      setError('Failed to load participant grade data');
     } finally {
       setLoading(false);
     }
@@ -100,7 +110,7 @@ export default function AsistenNilai() {
     const mGrade = grades[mahasiswaId];
     
     if (mGrade.nilai < 0 || mGrade.nilai > 100) {
-      setError('Nilai harus berada di rentang 0 s/d 100');
+      setError('Grade must be in the range of 0 to 100');
       return;
     }
 
@@ -112,22 +122,19 @@ export default function AsistenNilai() {
         catatan: mGrade.catatan,
         sesiId: null // default null for component-level grades
       });
-      setSuccess('Nilai mahasiswa berhasil disimpan!');
-      // Refresh list to pull updated data
+      setSuccess('Student grade saved successfully!');
       fetchPesertaNilai();
     } catch (err) {
-      setError(err.message || 'Gagal menyimpan nilai');
+      setError(err.message || 'Failed to save grade');
     }
   };
 
-  const currentJadwal = jadwal.find(j => j.id === parseInt(selectedJadwalId));
-
   return (
-    <DashboardLayout title="Input Nilai">
+    <DashboardLayout title="Grade Input">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 style={{ fontSize: '28px' }}>Input Nilai Praktikum</h1>
-          <p className="page-subtitle">Kelola penilaian tugas, asistensi, dan keaktifan mahasiswa di bawah bimbingan Anda</p>
+          <h1 style={{ fontSize: '28px' }}>Practicum Grade Input</h1>
+          <p className="page-subtitle">Manage task, assistance, and active participation grades for students under your guidance</p>
         </div>
       </div>
 
@@ -138,23 +145,23 @@ export default function AsistenNilai() {
         <div className="nilai-grid-header">
           <div className="flex gap-4 flex-wrap" style={{ flex: 1 }}>
             <div className="form-group" style={{ minWidth: '220px' }}>
-              <label className="form-label">Pilih Kelas</label>
+              <label className="form-label">Select Class</label>
               <select
                 className="form-select"
                 value={selectedJadwalId}
                 onChange={(e) => setSelectedJadwalId(e.target.value)}
               >
-                <option value="">-- Pilih Kelas --</option>
+                <option value="">-- Select Class --</option>
                 {jadwal.map(j => (
                   <option key={j.id} value={j.id}>
-                    {j.mataKuliah?.nama} ({j.hari}, {j.jamMulai}-{j.jamSelesai})
+                    {j.mataKuliah?.nama} ({dayMap[j.hari] || j.hari}, {j.jamMulai}-{j.jamSelesai})
                   </option>
                 ))}
               </select>
             </div>
 
             <div className="form-group" style={{ minWidth: '220px' }}>
-              <label className="form-label">Pilih Komponen</label>
+              <label className="form-label">Select Component</label>
               <select
                 className="form-select"
                 value={selectedKomponenId}
@@ -162,11 +169,11 @@ export default function AsistenNilai() {
                 disabled={komponen.length === 0}
               >
                 {komponen.length === 0 ? (
-                  <option value="">Tidak ada komponen asisten</option>
+                  <option value="">No assistant components</option>
                 ) : (
                   komponen.map(c => (
                     <option key={c.id} value={c.id}>
-                      {c.nama} (Bobot: {c.bobot}%)
+                      {c.nama} (Weight: {c.bobot}%)
                     </option>
                   ))
                 )}
@@ -177,26 +184,24 @@ export default function AsistenNilai() {
 
         {!selectedJadwalId || !selectedKomponenId ? (
           <div className="empty-state">
-            <div className="empty-state-icon">📝</div>
-            <p>Silakan pilih kelas dan komponen penilaian untuk memulai</p>
+            <p>Please select a class and grade component to begin</p>
           </div>
         ) : loading ? (
           <div className="flex-center" style={{ minHeight: '200px' }}><div className="spinner" /></div>
         ) : peserta.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">👨‍🎓</div>
-            <p>Tidak ada mahasiswa terdaftar di kelas ini</p>
+            <p>No students registered in this class</p>
           </div>
         ) : (
           <div className="table-wrapper">
             <table>
               <thead>
                 <tr>
-                  <th>Mahasiswa</th>
-                  <th>Stambuk</th>
-                  <th style={{ width: '120px' }}>Nilai (0 - 100)</th>
-                  <th>Catatan / Keterangan</th>
-                  <th style={{ width: '100px' }}>Aksi</th>
+                  <th>Student</th>
+                  <th>Student ID</th>
+                  <th style={{ width: '120px' }}>Grade (0 - 100)</th>
+                  <th>Notes / Description</th>
+                  <th style={{ width: '100px' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -224,7 +229,7 @@ export default function AsistenNilai() {
                       <input 
                         type="text" 
                         className="form-input" 
-                        placeholder="Contoh: Laporan sangat bagus, aktif menjawab..."
+                        placeholder="Example: Excellent report, active in class..."
                         value={grades[p.mahasiswaId]?.catatan ?? ''}
                         onChange={(e) => handleGradeChange(p.mahasiswaId, 'catatan', e.target.value)}
                       />
@@ -234,7 +239,7 @@ export default function AsistenNilai() {
                         className="btn btn-primary btn-sm" 
                         onClick={() => handleSaveGrade(p.mahasiswaId)}
                       >
-                        💾 Simpan
+                        Save
                       </button>
                     </td>
                   </tr>

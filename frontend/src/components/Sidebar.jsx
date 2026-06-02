@@ -3,41 +3,41 @@ import { getUser, logout } from '../lib/auth';
 
 const navItems = {
   admin: [
-    { to: '/admin', label: 'Dashboard', icon: '📊', end: true },
-    { to: '/admin/mahasiswa', label: 'Mahasiswa', icon: '👨‍🎓' },
-    { to: '/admin/dosen', label: 'Dosen', icon: '👨‍🏫' },
-    { to: '/admin/matkul', label: 'Mata Kuliah', icon: '📚' },
-    { to: '/admin/jadwal', label: 'Jadwal', icon: '🗓️' },
-    { to: '/admin/ajuan', label: 'Validasi Ajuan', icon: '✅' },
+    { to: '/admin', label: 'Dashboard', end: true },
+    { to: '/admin/mahasiswa', label: 'Students' },
+    { to: '/admin/dosen', label: 'Lecturers' },
+    { to: '/admin/matkul', label: 'Courses' },
+    { to: '/admin/jadwal', label: 'Schedules' },
+    { to: '/admin/ajuan', label: 'Requests' },
   ],
   asisten: [
-    { to: '/asisten', label: 'Dashboard', icon: '📊', end: true },
-    { to: '/asisten/sesi', label: 'Sesi Praktikum', icon: '🧪' },
-    { to: '/asisten/absensi', label: 'Absensi & Scanner', icon: '📷' },
-    { to: '/asisten/nilai', label: 'Input Nilai', icon: '📝' },
-    { to: '/asisten/ajuan', label: 'Ajuan Jadwal', icon: '🔄' },
+    { to: '/asisten', label: 'Dashboard', end: true },
+    { to: '/asisten/sesi', label: 'Practicum Sessions' },
+    { to: '/asisten/absensi', label: 'Attendance & Scanner' },
+    { to: '/asisten/nilai', label: 'Grade Input' },
+    { to: '/asisten/ajuan', label: 'Schedule Requests' },
   ],
   dosen: [
-    { to: '/dosen', label: 'Dashboard', icon: '📊', end: true },
-    { to: '/dosen/nilai', label: 'Input Nilai', icon: '📝' },
-    { to: '/dosen/rekap', label: 'Rekap Nilai', icon: '📋' },
-    { to: '/dosen/materi', label: 'Upload Materi', icon: '📁' },
-    { to: '/dosen/ajuan', label: 'Ajuan Jadwal', icon: '🔄' },
+    { to: '/dosen', label: 'Dashboard', end: true },
+    { to: '/dosen/nilai', label: 'Grade Input' },
+    { to: '/dosen/rekap', label: 'Grade Recap' },
+    { to: '/dosen/materi', label: 'Upload Material' },
+    { to: '/dosen/ajuan', label: 'Schedule Requests' },
   ],
   praktikan: [
-    { to: '/praktikan', label: 'Dashboard', icon: '📊', end: true },
-    { to: '/praktikan/qr', label: 'QR Code Saya', icon: '📱' },
-    { to: '/praktikan/jadwal', label: 'Jadwal', icon: '🗓️' },
-    { to: '/praktikan/absensi', label: 'Absensi', icon: '✔️' },
-    { to: '/praktikan/nilai', label: 'Nilai', icon: '🏆' },
+    { to: '/praktikan', label: 'Dashboard', end: true },
+    { to: '/praktikan/qr', label: 'My QR Code' },
+    { to: '/praktikan/jadwal', label: 'Schedules' },
+    { to: '/praktikan/absensi', label: 'Attendance' },
+    { to: '/praktikan/nilai', label: 'Grades' },
   ],
 };
 
 const roleLabel = {
   admin: 'Administrator',
-  asisten: 'Asisten',
-  dosen: 'Dosen',
-  praktikan: 'Praktikan',
+  asisten: 'Assistant',
+  dosen: 'Lecturer',
+  praktikan: 'Student',
 };
 
 export default function Sidebar() {
@@ -62,7 +62,7 @@ export default function Sidebar() {
             end={item.end}
             className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
           >
-            <span className="sidebar-link-icon">{item.icon}</span>
+            {item.icon && <span className="sidebar-link-icon">{item.icon}</span>}
             {item.label}
           </NavLink>
         ))}
@@ -73,15 +73,23 @@ export default function Sidebar() {
           <div className="sidebar-avatar">{initials}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="sidebar-user-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user?.nama || 'User'}
+               {user?.nama || 'User'}
             </div>
             <div className="sidebar-user-role">{roleLabel[role]}</div>
           </div>
           <button
             onClick={logout}
-            title="Keluar"
-            style={{ color: 'var(--muted)', fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
-          >⏏</button>
+            title="Logout"
+            style={{ color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: '4px', transition: 'color var(--transition)' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#ff4d4d'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </button>
         </div>
       </div>
     </aside>

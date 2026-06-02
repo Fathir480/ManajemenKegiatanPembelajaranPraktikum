@@ -181,18 +181,18 @@ export default function KelolaMahasiswa() {
   );
 
   return (
-    <DashboardLayout title="Kelola Mahasiswa">
+    <DashboardLayout title="Manage Students">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 style={{ fontSize: '28px' }}>Manajemen Mahasiswa</h1>
-          <p className="page-subtitle">Kelola praktikan akademik, stambuk, pembagian kelas otomatis, dan QR absensi</p>
+          <h1 style={{ fontSize: '28px' }}>Student Management</h1>
+          <p className="page-subtitle">Manage academic practitioners, student ID stambuks, class partition groups, and QR codes.</p>
         </div>
         <div className="flex gap-3">
           <button className="btn btn-ghost" onClick={() => setIsBulkModalOpen(true)}>
-            📥 Impor Massal (Excel)
+            Bulk Import (Excel)
           </button>
           <button className="btn btn-primary" onClick={handleOpenAddModal}>
-            ➕ Tambah Mahasiswa
+            Add Student
           </button>
         </div>
       </div>
@@ -203,42 +203,41 @@ export default function KelolaMahasiswa() {
       <div className="card mb-6">
         <div className="mahasiswa-controls">
           <div className="search-input-wrapper">
-            <span className="search-icon">🔍</span>
+            <span className="search-icon"></span>
             <input 
               type="text" 
               className="form-input" 
-              placeholder="Cari nama, stambuk, prodi..." 
+              placeholder="Search name, stambuk, major..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="text-muted text-mono" style={{ fontSize: '12px' }}>
-            Menampilkan {filteredMhs.length} mahasiswa
+            Showing {filteredMhs.length} students
           </div>
         </div>
 
         {loading ? (
           <div className="flex-center" style={{ minHeight: '200px', flexDirection: 'column', gap: '12px' }}>
             <div className="spinner" />
-            <span className="text-muted text-mono">Memproses data...</span>
+            <span className="text-muted text-mono">Processing data...</span>
           </div>
         ) : filteredMhs.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">👨‍🎓</div>
-            <p>Tidak ada mahasiswa ditemukan</p>
+            <div className="empty-state-icon"></div>
+            <p>No students found</p>
           </div>
         ) : (
           <div className="table-wrapper">
             <table>
               <thead>
                 <tr>
-                  <th>Nama</th>
-                  <th>Stambuk</th>
-                  <th>Angkatan</th>
-                  <th>Program Studi</th>
-                  <th>Kelas Otomatis</th>
+                  <th>Name</th>
+                  <th>Student ID (Stambuk)</th>
+                  <th>Cohort</th>
+                  <th>Major</th>
                   <th>Status</th>
-                  <th>Aksi</th>
+                  <th style={{ width: '80px' }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -255,22 +254,23 @@ export default function KelolaMahasiswa() {
                     <td>{m.angkatan}</td>
                     <td>{m.programStudi || '-'}</td>
                     <td>
-                      <span className="badge badge-admin" style={{ fontWeight: 600 }}>
-                        {m.kelas || '-'}
-                      </span>
-                    </td>
-                    <td>
                       <span className={`badge ${m.user?.aktif ? 'badge-status-active' : 'badge-status-inactive'}`}>
-                        {m.user?.aktif ? 'Aktif' : 'Non-aktif'}
+                        {m.user?.aktif ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td>
-                      <div className="flex gap-2">
-                        <button className="btn btn-outline btn-sm" onClick={() => handleOpenEditModal(m)}>
-                          ✏️ Edit
+                      <div className="flex gap-3 justify-end" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <button className="action-icon-btn action-edit" onClick={() => handleOpenEditModal(m)} title="Edit">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                          </svg>
                         </button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(m.id)}>
-                          🗑️ Hapus
+                        <button className="action-icon-btn action-delete" onClick={() => handleDelete(m.id)} title="Delete">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
                         </button>
                       </div>
                     </td>
@@ -288,14 +288,19 @@ export default function KelolaMahasiswa() {
           <div className="modal" style={{ maxWidth: '540px' }}>
             <div className="modal-header">
               <h3 className="modal-title">
-                {modalMode === 'add' ? 'Tambah Mahasiswa' : 'Edit Mahasiswa'}
+                {modalMode === 'add' ? 'Add Student' : 'Edit Student'}
               </h3>
-              <button className="modal-close" onClick={() => setIsModalOpen(false)}>×</button>
+              <button className="modal-close" onClick={() => setIsModalOpen(false)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             
             <form onSubmit={handleFormSubmit} className="login-form">
               <div className="form-group">
-                <label className="form-label">Nama Lengkap</label>
+                <label className="form-label">Full Name</label>
                 <input 
                   type="text" 
                   name="nama" 
@@ -307,7 +312,7 @@ export default function KelolaMahasiswa() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Email</label>
+                <label className="form-label">Email Address</label>
                 <input 
                   type="email" 
                   name="email" 
@@ -325,7 +330,7 @@ export default function KelolaMahasiswa() {
                     type="password" 
                     name="password" 
                     className="form-input" 
-                    placeholder="Kosongkan jika ingin default: mahasiswa123"
+                    placeholder="Leave empty for default: mahasiswa123"
                     value={formData.password} 
                     onChange={handleFormChange} 
                   />
@@ -334,7 +339,7 @@ export default function KelolaMahasiswa() {
 
               <div className="grid-2">
                 <div className="form-group">
-                  <label className="form-label">Stambuk / NIM</label>
+                  <label className="form-label">Student ID / NIM</label>
                   <input 
                     type="text" 
                     name="stambuk" 
@@ -345,7 +350,7 @@ export default function KelolaMahasiswa() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Angkatan</label>
+                  <label className="form-label">Cohort Year</label>
                   <input 
                     type="number" 
                     name="angkatan" 
@@ -358,7 +363,7 @@ export default function KelolaMahasiswa() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Program Studi</label>
+                <label className="form-label">Program of Study / Major</label>
                 <input 
                   type="text" 
                   name="programStudi" 
@@ -379,17 +384,17 @@ export default function KelolaMahasiswa() {
                     style={{ width: '16px', height: '16px' }}
                   />
                   <label htmlFor="aktif" className="form-label" style={{ margin: 0, textTransform: 'none', letterSpacing: 0 }}>
-                    Akun Aktif / Dapat Login
+                    Active Account / Grant Login
                   </label>
                 </div>
               )}
 
               <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsModalOpen(false)}>
-                  Batal
+                  Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Simpan
+                  Save Student
                 </button>
               </div>
             </form>
@@ -402,26 +407,31 @@ export default function KelolaMahasiswa() {
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: '480px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Impor Mahasiswa Massal</h3>
-              <button className="modal-close" onClick={() => setIsBulkModalOpen(false)}>×</button>
+              <h3 className="modal-title">Bulk Student Import</h3>
+              <button className="modal-close" onClick={() => setIsBulkModalOpen(false)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             
             <div className="login-form">
               <p style={{ fontSize: '14px', color: 'var(--body)', marginBottom: '16px', lineHeight: 1.6 }}>
-                Unggah file Excel (.xlsx atau .xls) untuk mendaftarkan mahasiswa secara massal. Sistem akan otomatis membagi mahasiswa ke dalam **Kelas A1, A2, A3, dst** (maksimal 30 mahasiswa per kelas) sesuai angkatan dan prodi.
+                Upload an Excel spreadsheet (.xlsx or .xls) to register students in bulk.
               </p>
 
               <button className="btn btn-outline" style={{ width: '100%', marginBottom: '24px', justifyContent: 'center' }} onClick={handleDownloadTemplate}>
-                📥 Unduh Template Excel (.xlsx)
+                Download Excel Template (.xlsx)
               </button>
 
               <div className="form-group" style={{ border: '2px dashed var(--hairline-strong)', padding: '24px', borderRadius: 'var(--radius-lg)', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
-                <span style={{ fontSize: '32px' }}>📊</span>
+                <span style={{ fontSize: '32px' }}></span>
                 <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--ink)', marginTop: '8px' }}>
-                  Pilih Berkas Excel Template Anda
+                  Select Excel Template File
                 </div>
                 <div className="text-muted text-mono" style={{ fontSize: '11px', marginTop: '4px' }}>
-                  Hanya mendukung format .xlsx dan .xls
+                  Only supports .xlsx and .xls formats
                 </div>
                 <input 
                   type="file" 
@@ -433,7 +443,7 @@ export default function KelolaMahasiswa() {
 
               <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsBulkModalOpen(false)}>
-                  Batal
+                  Cancel
                 </button>
               </div>
             </div>

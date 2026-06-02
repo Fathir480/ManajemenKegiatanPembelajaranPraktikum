@@ -3,6 +3,22 @@ import DashboardLayout from '../../../components/DashboardLayout';
 import { api } from '../../../lib/api';
 import './ajuan.css';
 
+const dayMap = {
+  'Senin': 'Monday',
+  'Selasa': 'Tuesday',
+  'Rabu': 'Wednesday',
+  'Kamis': 'Thursday',
+  'Jumat': 'Friday',
+  'Sabtu': 'Saturday',
+  'Minggu': 'Sunday'
+};
+
+const statusMap = {
+  'menunggu': 'Pending',
+  'disetujui': 'Approved',
+  'ditolak': 'Rejected'
+};
+
 export default function DosenAjuan() {
   const [myJadwal, setMyJadwal] = useState([]);
   const [allJadwal, setAllJadwal] = useState([]);
@@ -32,7 +48,7 @@ export default function DosenAjuan() {
       setAllJadwal(allJadwalData);
       setAjuan(ajuanData);
     } catch (err) {
-      setError(err.message || 'Gagal mengambil data ajuan');
+      setError(err.message || 'Failed to fetch request data');
     } finally {
       setLoading(false);
     }
@@ -44,7 +60,7 @@ export default function DosenAjuan() {
 
   const handleOpenAddModal = () => {
     if (myJadwal.length === 0) {
-      setError('Anda belum mengampu mata kuliah praktikum manapun');
+      setError('You are not assigned to any practicum schedule yet');
       return;
     }
     setFormData({
@@ -66,29 +82,29 @@ export default function DosenAjuan() {
     setSuccess('');
     
     if (formData.jadwalAsalId === formData.jadwalTujuanId) {
-      setError('Jadwal tujuan tidak boleh sama dengan jadwal asal');
+      setError('Target schedule cannot be the same as the original schedule');
       return;
     }
 
     try {
       await api.post('/dosen/ajuan', formData);
-      setSuccess('Ajuan pemindahan jadwal berhasil dikirim!');
+      setSuccess('Schedule transfer request submitted successfully');
       setIsModalOpen(false);
       fetchData();
     } catch (err) {
-      setError(err.message || 'Gagal mengirim pengajuan');
+      setError(err.message || 'Failed to submit request');
     }
   };
 
   return (
-    <DashboardLayout title="Ajuan Pindah Jadwal Dosen">
+    <DashboardLayout title="Schedule Requests">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 style={{ fontSize: '28px' }}>Pengajuan Pindah Jadwal</h1>
-          <p className="page-subtitle">Ajukan usulan pergeseran jadwal praktikum Anda ke kelas lain untuk divalidasi oleh admin</p>
+          <h1 style={{ fontSize: '28px' }}>Request Schedule Change</h1>
+          <p className="page-subtitle">Submit schedule change requests to be validated by the administrator</p>
         </div>
         <button className="btn btn-primary" onClick={handleOpenAddModal}>
-          🔄 Ajukan Pemindahan
+          Request Transfer
         </button>
       </div>
 
@@ -97,25 +113,24 @@ export default function DosenAjuan() {
 
       <div className="card mb-6">
         <div className="card-header">
-          <h3 className="card-title">Riwayat Usulan Pindah Jadwal</h3>
+          <h3 className="card-title">Your Request History</h3>
         </div>
 
         {loading ? (
           <div className="flex-center" style={{ minHeight: '200px' }}><div className="spinner" /></div>
         ) : ajuan.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">🔄</div>
-            <p>Belum ada riwayat pengajuan</p>
+            <p>No request history yet</p>
           </div>
         ) : (
           <div className="table-wrapper">
             <table>
               <thead>
                 <tr>
-                  <th>Tanggal Pengajuan</th>
-                  <th>Jadwal Asal</th>
-                  <th>Jadwal Tujuan</th>
-                  <th>Alasan Dosen</th>
+                  <th>Request Date</th>
+                  <th>Original Schedule</th>
+                  <th>Target Schedule</th>
+                  <th>Reason</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -123,20 +138,20 @@ export default function DosenAjuan() {
                 {ajuan.map(a => (
                   <tr key={a.id}>
                     <td className="text-mono" style={{ fontSize: '13px' }}>
-                      {new Date(a.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      {new Date(a.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </td>
                     <td>
                       <strong>{a.jadwalAsal?.mataKuliah?.nama}</strong>
                       <br />
                       <span className="text-mono" style={{ fontSize: '11px', color: 'var(--muted)' }}>
-                        {a.jadwalAsal?.hari}, {a.jadwalAsal?.jamMulai} - {a.jadwalAsal?.jamSelesai}
+                        {dayMap[a.jadwalAsal?.hari] || a.jadwalAsal?.hari}, {a.jadwalAsal?.jamMulai} - {a.jadwalAsal?.jamSelesai}
                       </span>
                     </td>
                     <td>
                       <strong>{a.jadwalTujuan?.mataKuliah?.nama}</strong>
                       <br />
                       <span className="text-mono" style={{ fontSize: '11px', color: 'var(--muted)' }}>
-                        {a.jadwalTujuan?.hari}, {a.jadwalTujuan?.jamMulai} - {a.jadwalTujuan?.jamSelesai}
+                        {dayMap[a.jadwalTujuan?.hari] || a.jadwalTujuan?.hari}, {a.jadwalTujuan?.jamMulai} - {a.jadwalTujuan?.jamSelesai}
                       </span>
                     </td>
                     <td>
@@ -145,8 +160,8 @@ export default function DosenAjuan() {
                       </p>
                     </td>
                     <td>
-                      <span className={`badge badge-${a.status}`}>
-                        {a.status}
+                      <span className={`badge ${a.status === 'disetujui' ? 'badge-status-active' : 'badge-status-inactive'}`}>
+                        {statusMap[a.status] || a.status}
                       </span>
                     </td>
                   </tr>
@@ -162,13 +177,18 @@ export default function DosenAjuan() {
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: '500px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Ajukan Pindah Jadwal</h3>
-              <button className="modal-close" onClick={() => setIsModalOpen(false)}>×</button>
+              <h3 className="modal-title">Request Schedule Change</h3>
+              <button className="modal-close" onClick={() => setIsModalOpen(false)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
             </div>
             
             <form onSubmit={handleFormSubmit} className="login-form">
               <div className="form-group">
-                <label className="form-label">Pilih Kelas / Jadwal Asal</label>
+                <label className="form-label">Select Your Original Class</label>
                 <select 
                   name="jadwalAsalId" 
                   className="form-select" 
@@ -178,14 +198,14 @@ export default function DosenAjuan() {
                 >
                   {myJadwal.map(j => (
                     <option key={j.id} value={j.id}>
-                      {j.mataKuliah?.nama} ({j.hari}, {j.jamMulai}-{j.jamSelesai})
+                      {j.mataKuliah?.nama} ({dayMap[j.hari] || j.hari}, {j.jamMulai}-{j.jamSelesai})
                     </option>
                   ))}
                 </select>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Pilih Kelas / Jadwal Tujuan</label>
+                <label className="form-label">Select Target Class / Schedule</label>
                 <select 
                   name="jadwalTujuanId" 
                   className="form-select" 
@@ -195,19 +215,19 @@ export default function DosenAjuan() {
                 >
                   {allJadwal.map(j => (
                     <option key={j.id} value={j.id}>
-                      {j.mataKuliah?.nama} ({j.hari}, {j.jamMulai}-{j.jamSelesai}) - {j.ruangan?.nama || 'Lab'}
+                      {j.mataKuliah?.nama} ({dayMap[j.hari] || j.hari}, {j.jamMulai}-{j.jamSelesai}) - {j.ruangan?.nama || 'Lab'}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Alasan Pemindahan</label>
+                <label className="form-label">Reason for Transfer</label>
                 <textarea 
                   name="alasan" 
                   className="form-textarea" 
                   required
-                  placeholder="Jelaskan alasan pengajuan pemindahan sesi praktikum Anda..."
+                  placeholder="Explain the reason for this schedule transfer request..."
                   value={formData.alasan} 
                   onChange={handleFormChange} 
                 />
@@ -215,10 +235,10 @@ export default function DosenAjuan() {
 
               <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsModalOpen(false)}>
-                  Batal
+                  Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Kirim Ajuan
+                  Submit Request
                 </button>
               </div>
             </form>
