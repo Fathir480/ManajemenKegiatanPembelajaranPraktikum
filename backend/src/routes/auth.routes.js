@@ -5,23 +5,57 @@ const prisma = require('../lib/prisma');
 
 const router = express.Router();
 
-// POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    const input = email; // Keep Using email as the parameter name from request body for compatibility, but we accept email, stambuk, or NID
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email dan password wajib diisi.' });
+    if (!input || !password) {
+      return res.status(400).json({ message: 'Email/Stambuk/NID dan password wajib diisi.' });
     }
 
-    // Cari user berdasarkan email, sertakan data role
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: { role: true },
-    });
+    let user = null;
+
+    if (input.includes('@')) {
+      // Cari user berdasarkan email
+      user = await prisma.user.findUnique({
+        where: { email: input },
+        include: { role: true },
+      });
+    } else {
+      // Cari mahasiswa berdasarkan stambuk
+      const mhs = await prisma.mahasiswa.findUnique({
+        where: { stambuk: input },
+        include: { user: { include: { role: true } } },
+      });
+
+      if (mhs) {
+        user = mhs.user;
+      } else {
+        // Cari asisten berdasarkan stambuk
+        const asis = await prisma.asisten.findFirst({
+          where: { stambuk: input },
+          include: { user: { include: { role: true } } },
+        });
+
+        if (asis) {
+          user = asis.user;
+        } else {
+          // Cari dosen berdasarkan NID
+          const dsn = await prisma.dosen.findUnique({
+            where: { nid: input },
+            include: { user: { include: { role: true } } },
+          });
+
+          if (dsn) {
+            user = dsn.user;
+          }
+        }
+      }
+    }
 
     if (!user) {
-      return res.status(401).json({ message: 'Email atau password salah.' });
+      return res.status(401).json({ message: 'Email, Stambuk, atau NID salah.' });
     }
 
     if (!user.aktif) {
@@ -31,7 +65,7 @@ router.post('/login', async (req, res) => {
     // Verifikasi password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Email atau password salah.' });
+      return res.status(401).json({ message: 'Email/Stambuk/NID atau password salah.' });
     }
 
     // Buat JWT token

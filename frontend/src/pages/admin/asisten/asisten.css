@@ -1,0 +1,37 @@
+.asisten-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.search-input-wrapper {
+  position: relative;
+  max-width: 320px;
+  width: 100%;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.search-input-wrapper input {
+  padding-left: 36px;
+}
+
+.badge-status-active {
+  background-color: var(--success-bg);
+  color: var(--success);
+}
+
+.badge-status-inactive {
+  background-color: var(--danger-bg);
+  color: var(--danger);
+}

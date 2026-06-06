@@ -3,7 +3,7 @@ import { api } from '../lib/api';
 import { setToken, setUser } from '../lib/auth';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,7 +13,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const data = await api.post('/auth/login', { email, password });
+      const data = await api.post('/auth/login', { email: username, password });
       setToken(data.token);
       setUser(data.user);
 
@@ -47,22 +47,24 @@ export default function LoginPage() {
 
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label" htmlFor="email">USERNAME</label>
+            <label className="form-label" htmlFor="username">USERNAME</label>
             <input
-              id="email"
+              id="username"
+              name="username"
               className="form-input"
-              type="email"
-              placeholder="username"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              type="text"
+              placeholder="Email / Stambuk / NID"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
               required
-              autoComplete="email"
+              autoComplete="username"
             />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="password">PASSWORD</label>
             <input
               id="password"
+              name="password"
               className="form-input"
               type="password"
               placeholder="••••••••"

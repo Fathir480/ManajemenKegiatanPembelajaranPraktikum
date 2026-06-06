@@ -10,6 +10,7 @@ import PraktikanDashboard from './pages/praktikan/Dashboard';
 
 // Admin Subpages
 import KelolaMahasiswa from './pages/admin/mahasiswa';
+import KelolaAsisten from './pages/admin/asisten';
 import KelolaDosen from './pages/admin/dosen';
 import KelolaMatkul from './pages/admin/matkul';
 import KelolaJadwal from './pages/admin/jadwal';
@@ -71,6 +72,9 @@ export default function App() {
         } />
         <Route path="/admin/mahasiswa" element={
           <PrivateRoute allowedRoles={['admin']}><KelolaMahasiswa /></PrivateRoute>
+        } />
+        <Route path="/admin/asisten" element={
+          <PrivateRoute allowedRoles={['admin']}><KelolaAsisten /></PrivateRoute>
         } />
         <Route path="/admin/dosen" element={
           <PrivateRoute allowedRoles={['admin']}><KelolaDosen /></PrivateRoute>

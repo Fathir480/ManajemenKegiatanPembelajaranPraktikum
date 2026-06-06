@@ -114,10 +114,10 @@ export default function KelolaDosen() {
 
   // --- BULK IMPORT EXCEL LOGIC ---
   const handleDownloadTemplate = () => {
-    const headers = [['Name', 'Email', 'NID', 'Specialization']];
+    const headers = [['Name', 'NID', 'Specialization']];
     const mockData = [
-      ['Prof. Dr. Ir. H. Anwar', 'anwar@praktikum.ac.id', 'NID-002', 'Software Engineering'],
-      ['Siti Fatimah, S.T, M.T', 'fatimah@praktikum.ac.id', 'NID-003', 'Artificial Intelligence']
+      ['Prof. Dr. Ir. H. Anwar', 'NID-002', 'Software Engineering'],
+      ['Siti Fatimah, S.T, M.T', 'NID-003', 'Artificial Intelligence']
     ];
     const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...mockData]);
     const workbook = XLSX.utils.book_new();
@@ -300,30 +300,6 @@ export default function KelolaDosen() {
                   className="form-input" 
                   required 
                   value={formData.nama} 
-                  onChange={handleFormChange} 
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Email</label>
-                <input 
-                  type="email" 
-                  name="email" 
-                  className="form-input" 
-                  required 
-                  value={formData.email} 
-                  onChange={handleFormChange} 
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Password</label>
-                <input 
-                  type="password" 
-                  name="password" 
-                  className="form-input" 
-                  placeholder={modalMode === 'add' ? "Leave empty for default: dosen123" : "Leave empty to keep unchanged"}
-                  value={formData.password} 
                   onChange={handleFormChange} 
                 />
               </div>

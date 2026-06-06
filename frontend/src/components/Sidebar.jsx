@@ -5,6 +5,7 @@ const navItems = {
   admin: [
     { to: '/admin', label: 'Dashboard', end: true },
     { to: '/admin/mahasiswa', label: 'Students' },
+    { to: '/admin/asisten', label: 'Assistants' },
     { to: '/admin/dosen', label: 'Lecturers' },
     { to: '/admin/matkul', label: 'Courses' },
     { to: '/admin/jadwal', label: 'Schedules' },

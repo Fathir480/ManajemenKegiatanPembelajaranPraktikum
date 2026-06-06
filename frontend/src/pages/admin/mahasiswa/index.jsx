@@ -116,12 +116,32 @@ export default function KelolaMahasiswa() {
     }
   };
 
+  const handleToggleAsisten = async (m) => {
+    const isAsisten = m.user?.role?.namaRole === 'asisten';
+    const action = isAsisten ? 'demote' : 'promote';
+    const message = isAsisten 
+      ? `Are you sure you want to demote ${m.user?.nama} back to a regular student?`
+      : `Are you sure you want to promote ${m.user?.nama} to Assistant?`;
+      
+    if (!window.confirm(message)) return;
+
+    try {
+      setError('');
+      setSuccess('');
+      const res = await api.post(`/admin/asisten/${action}`, { userId: m.user?.id });
+      setSuccess(res.message || `Successfully ${isAsisten ? 'demoted' : 'promoted'} student.`);
+      fetchMahasiswa();
+    } catch (err) {
+      setError(err.message || 'Failed to toggle assistant status.');
+    }
+  };
+
   // --- BULK IMPORT EXCEL LOGIC ---
   const handleDownloadTemplate = () => {
-    const headers = [['Nama', 'Email', 'Stambuk', 'Angkatan', 'Program Studi']];
+    const headers = [['Nama', 'Stambuk', 'Angkatan', 'Program Studi']];
     const mockData = [
-      ['Siti Aminah', 'siti@praktikum.ac.id', 'H071231024', 2023, 'Sistem Informasi'],
-      ['Budi Gunawan', 'budi@praktikum.ac.id', 'H071231055', 2023, 'Sistem Informasi']
+      ['Siti Aminah', 'H071231024', 2023, 'Sistem Informasi'],
+      ['Budi Gunawan', 'H071231055', 2023, 'Sistem Informasi']
     ];
     const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...mockData]);
     const workbook = XLSX.utils.book_new();
@@ -244,9 +264,21 @@ export default function KelolaMahasiswa() {
                 {filteredMhs.map(m => (
                   <tr key={m.id}>
                     <td>
-                      <strong>{m.user?.nama}</strong>
+                      <div className="flex gap-2" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                        <button 
+                          className="action-icon-btn action-star" 
+                          onClick={() => handleToggleAsisten(m)} 
+                          title={m.user?.role?.namaRole === 'asisten' ? 'Demote from Assistant' : 'Promote to Assistant'}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: m.user?.role?.namaRole === 'asisten' ? '#ffc107' : 'var(--muted)' }}
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill={m.user?.role?.namaRole === 'asisten' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                          </svg>
+                        </button>
+                        <strong>{m.user?.nama}</strong>
+                      </div>
                       <br />
-                      <span className="text-mono" style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                      <span className="text-mono" style={{ fontSize: '11px', color: 'var(--muted)', marginLeft: '27px' }}>
                         {m.user?.email}
                       </span>
                     </td>
@@ -310,32 +342,6 @@ export default function KelolaMahasiswa() {
                   onChange={handleFormChange} 
                 />
               </div>
-
-              <div className="form-group">
-                <label className="form-label">Email Address</label>
-                <input 
-                  type="email" 
-                  name="email" 
-                  className="form-input" 
-                  required 
-                  value={formData.email} 
-                  onChange={handleFormChange} 
-                />
-              </div>
-
-              {modalMode === 'add' && (
-                <div className="form-group">
-                  <label className="form-label">Password</label>
-                  <input 
-                    type="password" 
-                    name="password" 
-                    className="form-input" 
-                    placeholder="Leave empty for default: mahasiswa123"
-                    value={formData.password} 
-                    onChange={handleFormChange} 
-                  />
-                </div>
-              )}
 
               <div className="grid-2">
                 <div className="form-group">

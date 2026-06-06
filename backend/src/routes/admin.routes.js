@@ -12,7 +12,18 @@ router.use(authenticate, authorize('admin'));
 router.get('/mahasiswa', async (req, res) => {
   try {
     const mahasiswa = await prisma.mahasiswa.findMany({
-      include: { user: { select: { nama: true, email: true, aktif: true } } },
+      include: { 
+        user: { 
+          select: { 
+            id: true,
+            nama: true, 
+            email: true, 
+            aktif: true,
+            roleId: true,
+            role: true
+          } 
+        } 
+      },
       orderBy: { stambuk: 'asc' },
     });
     res.json(mahasiswa);
@@ -26,7 +37,10 @@ router.post('/mahasiswa', async (req, res) => {
   try {
     const { nama, email, password, stambuk, angkatan, programStudi } = req.body;
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const finalEmail = (email && email.trim()) ? email : `${stambuk.trim()}@student.umi.ac.id`;
+    const finalPassword = (password && password.trim()) ? password : `mhs${angkatan}`;
+
+    const existingUser = await prisma.user.findUnique({ where: { email: finalEmail } });
     if (existingUser) return res.status(400).json({ message: 'Email sudah terdaftar.' });
 
     const existingMhs = await prisma.mahasiswa.findUnique({ where: { stambuk } });
@@ -43,12 +57,13 @@ router.post('/mahasiswa', async (req, res) => {
     const kelas = `A${classNumber}`;
 
     const roleId = await prisma.role.findUnique({ where: { namaRole: 'praktikan' } });
-    const finalPassword = password || 'mahasiswa123';
     const passwordHash = await bcrypt.hash(finalPassword, 10);
 
     const user = await prisma.user.create({
       data: {
-        nama, email, passwordHash,
+        nama,
+        email: finalEmail,
+        passwordHash,
         roleId: roleId.id,
         mahasiswa: {
           create: { stambuk, angkatan: parseInt(angkatan), programStudi, kelas },
@@ -74,16 +89,22 @@ router.put('/mahasiswa/:id', async (req, res) => {
     });
     if (!mhs) return res.status(404).json({ message: 'Mahasiswa tidak ditemukan.' });
 
+    const finalEmail = `${stambuk.trim()}@student.umi.ac.id`;
+
     await prisma.mahasiswa.update({
       where: { id: mhs.id },
       data: { stambuk, angkatan: angkatan ? parseInt(angkatan) : undefined, programStudi },
     });
-    if (nama || aktif !== undefined) {
-      await prisma.user.update({
-        where: { id: mhs.userId },
-        data: { nama, aktif },
-      });
-    }
+    
+    await prisma.user.update({
+      where: { id: mhs.userId },
+      data: { 
+        nama, 
+        email: finalEmail,
+        aktif: aktif !== undefined ? aktif : undefined 
+      },
+    });
+
     res.json({ message: 'Data mahasiswa berhasil diperbarui.' });
   } catch (error) {
     res.status(500).json({ message: 'Gagal memperbarui mahasiswa.', error: error.message });
@@ -119,22 +140,25 @@ router.post('/mahasiswa/bulk', async (req, res) => {
     if (!Array.isArray(items)) return res.status(400).json({ message: 'Data items harus berupa array.' });
 
     const roleId = await prisma.role.findUnique({ where: { namaRole: 'praktikan' } });
-    const defaultPasswordHash = await bcrypt.hash('mahasiswa123', 10);
     let successCount = 0;
     let skipCount = 0;
 
     for (const item of items) {
       try {
         const { nama, email, password, stambuk, angkatan, programStudi } = item;
-        if (!email || !stambuk || !nama || !angkatan) {
+        
+        const finalEmail = (email && email.trim()) ? email : `${String(stambuk).trim()}@student.umi.ac.id`;
+        const finalPassword = (password && password.trim()) ? password : `mhs${angkatan}`;
+
+        if (!finalEmail || !stambuk || !nama || !angkatan) {
           skipCount++;
           continue;
         }
 
-        const existingUser = await prisma.user.findUnique({ where: { email } });
+        const existingUser = await prisma.user.findUnique({ where: { email: finalEmail } });
         if (existingUser) { skipCount++; continue; }
 
-        const existingMhs = await prisma.mahasiswa.findUnique({ where: { stambuk } });
+        const existingMhs = await prisma.mahasiswa.findUnique({ where: { stambuk: String(stambuk) } });
         if (existingMhs) { skipCount++; continue; }
 
         // Hitung kelas otomatis (A1, A2, dst)
@@ -147,14 +171,16 @@ router.post('/mahasiswa/bulk', async (req, res) => {
         const classNumber = Math.floor(count / 30) + 1;
         const kelas = `A${classNumber}`;
 
-        const pHash = password ? await bcrypt.hash(password, 10) : defaultPasswordHash;
+        const pHash = await bcrypt.hash(finalPassword, 10);
 
         await prisma.user.create({
           data: {
-            nama, email, passwordHash: pHash,
+            nama, 
+            email: finalEmail, 
+            passwordHash: pHash,
             roleId: roleId.id,
             mahasiswa: {
-              create: { stambuk, angkatan: parseInt(angkatan), programStudi, kelas },
+              create: { stambuk: String(stambuk), angkatan: parseInt(angkatan), programStudi, kelas },
             },
           }
         });
@@ -186,13 +212,23 @@ router.get('/dosen', async (req, res) => {
 router.post('/dosen', async (req, res) => {
   try {
     const { nama, email, password, nid, spesialisasi } = req.body;
+    const finalEmail = (email && email.trim()) ? email : `${nid.trim()}@lecturer.umi.ac.id`;
+    const finalPassword = (password && password.trim()) ? password : '123';
+
+    const existingUser = await prisma.user.findUnique({ where: { email: finalEmail } });
+    if (existingUser) return res.status(400).json({ message: 'Email sudah terdaftar.' });
+
+    const existingDosen = await prisma.dosen.findUnique({ where: { nid } });
+    if (existingDosen) return res.status(400).json({ message: 'NID sudah terdaftar.' });
+
     const roleId = await prisma.role.findUnique({ where: { namaRole: 'dosen' } });
-    const finalPassword = password || 'dosen123';
     const passwordHash = await bcrypt.hash(finalPassword, 10);
 
     const user = await prisma.user.create({
       data: {
-        nama, email, passwordHash,
+        nama,
+        email: finalEmail,
+        passwordHash,
         roleId: roleId.id,
         dosen: { create: { nid, spesialisasi } },
       },
@@ -215,16 +251,21 @@ router.put('/dosen/:id', async (req, res) => {
     });
     if (!dosen) return res.status(404).json({ message: 'Dosen tidak ditemukan.' });
 
+    const finalEmail = email || `${nid.trim()}@lecturer.umi.ac.id`;
+
     await prisma.dosen.update({
       where: { id: dosen.id },
       data: { nid, spesialisasi },
     });
-    if (nama || email || aktif !== undefined) {
-      await prisma.user.update({
-        where: { id: dosen.userId },
-        data: { nama, email, aktif },
-      });
-    }
+    
+    await prisma.user.update({
+      where: { id: dosen.userId },
+      data: { 
+        nama, 
+        email: finalEmail, 
+        aktif: aktif !== undefined ? aktif : undefined 
+      },
+    });
     res.json({ message: 'Data dosen berhasil diperbarui.' });
   } catch (error) {
     res.status(500).json({ message: 'Gagal memperbarui dosen.', error: error.message });
@@ -256,32 +297,36 @@ router.post('/dosen/bulk', async (req, res) => {
     if (!Array.isArray(items)) return res.status(400).json({ message: 'Data items harus berupa array.' });
 
     const roleId = await prisma.role.findUnique({ where: { namaRole: 'dosen' } });
-    const defaultPasswordHash = await bcrypt.hash('dosen123', 10);
     let successCount = 0;
     let skipCount = 0;
 
     for (const item of items) {
       try {
         const { nama, email, password, nid, spesialisasi } = item;
-        if (!email || !nid || !nama) {
+        const finalEmail = (email && email.trim()) ? email : `${String(nid).trim()}@lecturer.umi.ac.id`;
+        const finalPassword = (password && password.trim()) ? password : '123';
+
+        if (!finalEmail || !nid || !nama) {
           skipCount++;
           continue;
         }
 
-        const existingUser = await prisma.user.findUnique({ where: { email } });
+        const existingUser = await prisma.user.findUnique({ where: { email: finalEmail } });
         if (existingUser) { skipCount++; continue; }
 
-        const existingDosen = await prisma.dosen.findUnique({ where: { nid } });
+        const existingDosen = await prisma.dosen.findUnique({ where: { nid: String(nid) } });
         if (existingDosen) { skipCount++; continue; }
 
-        const pHash = password ? await bcrypt.hash(password, 10) : defaultPasswordHash;
+        const pHash = await bcrypt.hash(finalPassword, 10);
 
         await prisma.user.create({
           data: {
-            nama, email, passwordHash: pHash,
+            nama,
+            email: finalEmail,
+            passwordHash: pHash,
             roleId: roleId.id,
             dosen: {
-              create: { nid, spesialisasi },
+              create: { nid: String(nid), spesialisasi },
             },
           }
         });
@@ -550,11 +595,111 @@ router.post('/jadwal', async (req, res) => {
 router.get('/asisten', async (req, res) => {
   try {
     const asisten = await prisma.asisten.findMany({
-      include: { user: { select: { nama: true, email: true } } },
+      include: {
+        user: {
+          select: {
+            id: true,
+            nama: true,
+            email: true,
+            aktif: true,
+            role: true
+          }
+        }
+      },
+      orderBy: { stambuk: 'asc' },
     });
     res.json(asisten);
   } catch (error) {
     res.status(500).json({ message: 'Gagal mengambil data asisten.' });
+  }
+});
+
+// GET semua mahasiswa non-asisten
+router.get('/mahasiswa/non-asisten', async (req, res) => {
+  try {
+    const roleMhs = await prisma.role.findUnique({ where: { namaRole: 'praktikan' } });
+    const nonAsisten = await prisma.mahasiswa.findMany({
+      where: {
+        user: {
+          roleId: roleMhs.id
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            nama: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { stambuk: 'asc' },
+    });
+    res.json(nonAsisten);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil data mahasiswa non-asisten.' });
+  }
+});
+
+// POST mempromosikan mahasiswa menjadi asisten
+router.post('/asisten/promote', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+      include: { mahasiswa: true, asisten: true },
+    });
+    if (!user) return res.status(404).json({ message: 'User tidak ditemukan.' });
+
+    const roleAsisten = await prisma.role.findUnique({ where: { namaRole: 'asisten' } });
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { roleId: roleAsisten.id },
+    });
+
+    if (!user.asisten) {
+      const stambuk = user.mahasiswa?.stambuk || 'ASISTEN';
+      await prisma.asisten.create({
+        data: {
+          userId: user.id,
+          stambuk: stambuk,
+        },
+      });
+    }
+
+    res.json({ message: `${user.nama} berhasil dipromosikan sebagai Asisten.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mempromosikan asisten.', error: error.message });
+  }
+});
+
+// POST menurunkan asisten menjadi praktikan biasa
+router.post('/asisten/demote', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+      include: { asisten: true },
+    });
+    if (!user) return res.status(404).json({ message: 'User tidak ditemukan.' });
+
+    const roleMhs = await prisma.role.findUnique({ where: { namaRole: 'praktikan' } });
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { roleId: roleMhs.id },
+    });
+
+    if (user.asisten) {
+      await prisma.asisten.delete({
+        where: { id: user.asisten.id },
+      });
+    }
+
+    res.json({ message: `${user.nama} berhasil diturunkan menjadi Praktikan biasa.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal menurunkan asisten.', error: error.message });
   }
 });
 
