@@ -16,7 +16,7 @@ export default function LoginPage() {
       const data = await api.post('/auth/login', { email, password });
       setToken(data.token);
       setUser(data.user);
-      // Redirect berdasarkan role
+
       const role = data.user.role.namaRole;
       const routes = {
         admin: '/admin',
@@ -47,12 +47,12 @@ export default function LoginPage() {
 
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label" htmlFor="email">Email</label>
+            <label className="form-label" htmlFor="email">USERNAME</label>
             <input
               id="email"
               className="form-input"
               type="email"
-              placeholder="nama@kampus.ac.id"
+              placeholder="username"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
@@ -60,7 +60,7 @@ export default function LoginPage() {
             />
           </div>
           <div className="form-group">
-            <label className="form-label" htmlFor="password">Kata Sandi</label>
+            <label className="form-label" htmlFor="password">PASSWORD</label>
             <input
               id="password"
               className="form-input"
@@ -78,7 +78,7 @@ export default function LoginPage() {
             className="btn btn-primary w-full"
             disabled={loading}
           >
-            {loading ? 'Memproses...' : 'Masuk Dashboard'}
+            {loading ? 'Authenticating...' : 'LOGIN'}
           </button>
         </form>
       </div>
