@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { api } from '../../../lib/api';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import './absensi.css';
 
 const dayMap = {
@@ -80,43 +80,59 @@ export default function AsistenAbsensi() {
     }
   }, [selectedSesiId]);
 
-  // QR Code Scanner Initialization
+  // QR Code Scanner Initialization (Menggunakan Core Engine agar stabil di React)
   useEffect(() => {
+    let html5QrCode = null;
+
     if (scannerActive && selectedSesiId) {
-      const scanner = new Html5QrcodeScanner('reader', {
-        fps: 10,
-        qrbox: { width: 200, height: 200 },
-        aspectRatio: 1.0
-      }, false);
+      // Inisialisasi engine utama ke elemen id="reader"
+      html5QrCode = new Html5Qrcode("reader");
 
-      scanner.render(async (decodedText) => {
-        try {
-          setError('');
-          setSuccess('');
-          const res = await api.post('/asisten/absensi/qr', {
-            sesiId: selectedSesiId,
-            qrToken: decodedText
-          });
-          setSuccess(res.message || 'QR code successfully scanned!');
-          fetchSessionDetails(selectedSesiId);
-        } catch (err) {
-          setError(err.message || 'Failed to process QR Code');
+      // Mulai kamera
+      html5QrCode.start(
+        { facingMode: "environment" }, // Gunakan kamera belakang/utama
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0
+        },
+        async (decodedText) => {
+          // Callback saat QR berhasil terbaca
+          try {
+            setError('');
+            setSuccess('');
+            const res = await api.post('/asisten/absensi/qr', {
+              sesiId: selectedSesiId,
+              qrToken: decodedText
+            });
+            setSuccess(res.message || 'QR code successfully scanned!');
+            
+            // Matikan kamera otomatis setelah berhasil (opsional)
+            // setScannerActive(false); 
+            
+            fetchSessionDetails(selectedSesiId);
+          } catch (err) {
+            setError(err.message || 'Failed to process QR Code');
+          }
+        },
+        (errorMessage) => {
+          // Silent error saat mencari QR
         }
-      }, () => {
-        // Silent error
+      ).catch((err) => {
+        // Jika kamera gagal dinyalakan
+        console.error("Gagal menyalakan kamera:", err);
+        setError("Gagal mengakses kamera. Pastikan izin sudah diberikan.");
       });
-
-      scannerRef.current = scanner;
-    } else {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(() => {});
-        scannerRef.current = null;
-      }
     }
 
+    // Cleanup: Matikan kamera saat pindah halaman atau scanner dimatikan
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(() => {});
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+          html5QrCode.clear();
+        }).catch((err) => {
+          console.error("Gagal mematikan kamera:", err);
+        });
       }
     };
   }, [scannerActive, selectedSesiId]);
