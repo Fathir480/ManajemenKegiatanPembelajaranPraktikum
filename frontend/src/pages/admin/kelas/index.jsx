@@ -1,0 +1,486 @@
+import { useState, useEffect } from 'react';
+import DashboardLayout from '../../../components/DashboardLayout';
+import { api } from '../../../lib/api';
+import './kelas.css';
+
+export default function KelolaKelas() {
+  const [kelas, setKelas] = useState([]);
+  const [mataKuliahList, setMataKuliahList] = useState([]);
+  const [dosenList, setDosenList] = useState([]);
+  const [mahasiswaList, setMahasiswaList] = useState([]);
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPesertaModalOpen, setIsPesertaModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
+  const [selectedKelas, setSelectedKelas] = useState(null);
+  
+  // Peserta State
+  const [pesertaKelas, setPesertaKelas] = useState([]);
+  const [selectedMhsToAdd, setSelectedMhsToAdd] = useState('');
+  
+  // Form State
+  const [formData, setFormData] = useState({
+    namaKelas: '',
+    mataKuliahId: '',
+    dosenId: '',
+    semester: '',
+    aktif: true
+  });
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [kelasData, mkData, dosenData, mhsData] = await Promise.all([
+        api.get('/admin/kelas'),
+        api.get('/admin/matkul'),
+        api.get('/admin/dosen'),
+        api.get('/admin/mahasiswa')
+      ]);
+      setKelas(kelasData);
+      setMataKuliahList(mkData);
+      setDosenList(dosenData);
+      setMahasiswaList(mhsData);
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Gagal mengambil data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleOpenAddModal = () => {
+    setModalMode('add');
+    setFormData({
+      namaKelas: '',
+      mataKuliahId: '',
+      dosenId: '',
+      semester: '2024/2025 Ganjil',
+      aktif: true
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (k) => {
+    setModalMode('edit');
+    setSelectedKelas(k);
+    setFormData({
+      namaKelas: k.namaKelas,
+      mataKuliahId: k.mataKuliahId,
+      dosenId: k.dosenId,
+      semester: k.semester,
+      aktif: k.aktif
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleOpenPesertaModal = async (k) => {
+    setSelectedKelas(k);
+    setIsPesertaModalOpen(true);
+    await fetchPeserta(k.id);
+  };
+
+  const fetchPeserta = async (kelasId) => {
+    try {
+      const data = await api.get(`/admin/kelas/${kelasId}/peserta`);
+      setPesertaKelas(data);
+    } catch (err) {
+      setError(err.message || 'Gagal mengambil peserta kelas');
+    }
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    
+    try {
+      if (modalMode === 'add') {
+        await api.post('/admin/kelas', formData);
+        setSuccess('Class successfully added');
+      } else {
+        await api.put(`/admin/kelas/${selectedKelas.id}`, formData);
+        setSuccess('Class successfully updated');
+      }
+      setIsModalOpen(false);
+      fetchData();
+    } catch (err) {
+      setError(err.message || 'Gagal menyimpan data kelas');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus kelas ini?')) return;
+    
+    try {
+      setSuccess('');
+      setError('');
+      await api.delete(`/admin/kelas/${id}`);
+      setSuccess('Class successfully deleted');
+      fetchData();
+    } catch (err) {
+      setError(err.message || 'Gagal menghapus kelas');
+    }
+  };
+
+  const handleAddPeserta = async () => {
+    if (!selectedMhsToAdd) return;
+    try {
+      setError('');
+      setSuccess('');
+      await api.post(`/admin/kelas/${selectedKelas.id}/peserta`, {
+        mahasiswaIds: [selectedMhsToAdd]
+      });
+      setSuccess('Student successfully enrolled in class');
+      fetchPeserta(selectedKelas.id);
+      fetchData(); // Update count
+      setSelectedMhsToAdd('');
+    } catch (err) {
+      setError(err.message || 'Gagal menambahkan peserta');
+    }
+  };
+
+  const handleRemovePeserta = async (mahasiswaId) => {
+    try {
+      setError('');
+      setSuccess('');
+      await api.delete(`/admin/kelas/${selectedKelas.id}/peserta/${mahasiswaId}`);
+      setSuccess('Student successfully removed from class');
+      fetchPeserta(selectedKelas.id);
+      fetchData(); // Update count
+    } catch (err) {
+      setError(err.message || 'Gagal menghapus peserta');
+    }
+  };
+
+  const filteredKelas = kelas.filter(k => 
+    k.namaKelas.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    k.mataKuliah?.nama.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <DashboardLayout title="Manage Classes">
+      <div className="page-header">
+        <div className="page-header-left">
+          <h1 style={{ fontSize: '28px' }}>Class Management</h1>
+          <p className="page-subtitle">Manage academic classes, assign lecturers, and enroll student participants (KRS)</p>
+        </div>
+        <div className="flex gap-3">
+          <button className="btn btn-primary" onClick={handleOpenAddModal}>
+            Add Class
+          </button>
+        </div>
+      </div>
+
+      {success && <div className="alert alert-success mb-6">{success}</div>}
+      {error && <div className="alert alert-error mb-6">{error}</div>}
+
+      <div className="card mb-6">
+        <div className="kelas-controls">
+          <div className="search-wrapper" style={{ position: 'relative', width: '320px' }}>
+            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </span>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Search class or course name..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ paddingLeft: '36px' }}
+            />
+          </div>
+          <div className="text-muted text-mono" style={{ fontSize: '12px' }}>
+            Showing {filteredKelas.length} classes
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex-center" style={{ minHeight: '200px', flexDirection: 'column', gap: '12px' }}>
+            <div className="spinner" />
+            <span className="text-muted text-mono">Processing data...</span>
+          </div>
+        ) : filteredKelas.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon"></div>
+            <p>No classes found</p>
+          </div>
+        ) : (
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Class Name</th>
+                  <th>Course</th>
+                  <th>Lecturer</th>
+                  <th>Semester</th>
+                  <th>Participants</th>
+                  <th>Status</th>
+                  <th style={{ width: '80px' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredKelas.map((k) => (
+                  <tr key={k.id}>
+                    <td style={{ fontWeight: 600 }}>{k.namaKelas}</td>
+                    <td>{k.mataKuliah?.nama || '-'}</td>
+                    <td>{k.dosen?.user?.nama || '-'}</td>
+                    <td>{k.semester}</td>
+                    <td>
+                      <span 
+                        className="badge badge-dosen cursor-pointer" 
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        onClick={() => handleOpenPesertaModal(k)}
+                        title="Manage Participants"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                        <span>{k._count?.pesertaKelas || 0} Students</span>
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge ${k.aktif ? 'badge-status-active' : 'badge-status-inactive'}`}>
+                        {k.aktif ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="flex gap-3 justify-end" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <button className="action-icon-btn action-edit" onClick={() => handleOpenEditModal(k)} title="Edit">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                          </svg>
+                        </button>
+                        <button className="action-icon-btn action-delete" onClick={() => handleDelete(k.id)} title="Delete">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Modal Tambah/Edit Kelas */}
+      {isModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '540px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                {modalMode === 'add' ? 'Add Class' : 'Edit Class'}
+              </h3>
+              <button className="modal-close" onClick={() => setIsModalOpen(false)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            
+            <form onSubmit={handleFormSubmit} className="login-form">
+              <div className="form-group">
+                <label className="form-label">Class Name</label>
+                <input 
+                  type="text" 
+                  name="namaKelas" 
+                  className="form-input" 
+                  placeholder="Example: A1 Pemrograman Web"
+                  required 
+                  value={formData.namaKelas} 
+                  onChange={handleFormChange} 
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Course (Mata Kuliah)</label>
+                <select 
+                  name="mataKuliahId" 
+                  className="form-select"
+                  value={formData.mataKuliahId} 
+                  onChange={handleFormChange} 
+                  required
+                >
+                  <option value="">-- Select Course --</option>
+                  {mataKuliahList.map(mk => (
+                    <option key={mk.id} value={mk.id}>{mk.kode} - {mk.nama}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Lecturer (Dosen Pengampu)</label>
+                <select 
+                  name="dosenId" 
+                  className="form-select"
+                  value={formData.dosenId} 
+                  onChange={handleFormChange} 
+                  required
+                >
+                  <option value="">-- Select Lecturer --</option>
+                  {dosenList.map(d => (
+                    <option key={d.id} value={d.id}>{d.nid} - {d.user?.nama}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Semester</label>
+                <input 
+                  type="text" 
+                  name="semester" 
+                  className="form-input" 
+                  placeholder="Example: 2024/2025 Genap"
+                  required 
+                  value={formData.semester} 
+                  onChange={handleFormChange} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                <input 
+                  type="checkbox" 
+                  name="aktif" 
+                  id="aktif" 
+                  checked={formData.aktif} 
+                  onChange={handleFormChange} 
+                  style={{ width: '16px', height: '16px' }}
+                />
+                <label htmlFor="aktif" className="form-label" style={{ margin: 0, textTransform: 'none', letterSpacing: 0 }}>
+                  Active Class
+                </label>
+              </div>
+
+              <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setIsModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save Class
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Kelola Peserta (KRS) */}
+      {isPesertaModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '640px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                Manage Participants: {selectedKelas?.namaKelas}
+              </h3>
+              <button className="modal-close" onClick={() => setIsPesertaModalOpen(false)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="login-form">
+              <div className="add-peserta-bar" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <select 
+                  className="form-select"
+                  value={selectedMhsToAdd} 
+                  onChange={(e) => setSelectedMhsToAdd(e.target.value)}
+                  style={{ flex: 1 }}
+                >
+                  <option value="">-- Choose Student to Add --</option>
+                  {mahasiswaList
+                    .filter(m => !pesertaKelas.some(pk => pk.mahasiswaId === m.id))
+                    .map(m => (
+                      <option key={m.id} value={m.id}>{m.stambuk} - {m.user?.nama}</option>
+                    ))
+                  }
+                </select>
+                <button className="btn btn-primary btn-sm" onClick={handleAddPeserta} disabled={!selectedMhsToAdd}>
+                  Add
+                </button>
+              </div>
+              
+              <h4 style={{ marginTop: '20px', marginBottom: '10px', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', fontFamily: 'var(--font-mono)' }}>
+                Enrolled Students ({pesertaKelas.length})
+              </h4>
+              
+              {pesertaKelas.length === 0 ? (
+                <div className="empty-state" style={{ padding: '20px 0' }}>
+                  <p>No students enrolled yet</p>
+                </div>
+              ) : (
+                <div className="table-wrapper" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Stambuk</th>
+                        <th>Name</th>
+                        <th style={{ width: '50px' }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pesertaKelas.map(pk => (
+                        <tr key={pk.id}>
+                          <td className="text-mono">{pk.mahasiswa?.stambuk}</td>
+                          <td><strong>{pk.mahasiswa?.user?.nama}</strong></td>
+                          <td>
+                            <button 
+                              className="action-icon-btn action-delete" 
+                              title="Remove from class"
+                              onClick={() => handleRemovePeserta(pk.mahasiswaId)}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setIsPesertaModalOpen(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </DashboardLayout>
+  );
+}

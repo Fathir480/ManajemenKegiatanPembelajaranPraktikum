@@ -58,6 +58,7 @@ model Mahasiswa {
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   pesertaJadwal PesertaJadwal[]
+  pesertaKelas  PesertaKelas[]
   absensi       Absensi[]
   nilai         Nilai[]
   rekapNilai    RekapNilaiAkhir[]
@@ -74,6 +75,7 @@ model Dosen {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   pengampu  Pengampu[]
   materi    Materi[]
+  kelas     Kelas[]
 
   @@map("dosen")
 }
@@ -104,6 +106,7 @@ model MataKuliah {
   komponenNilai   KomponenNilai[]
   materi          Materi[]
   rekapNilai      RekapNilaiAkhir[]
+  kelas           Kelas[]
 
   @@map("mata_kuliah")
 }
@@ -118,7 +121,7 @@ model Pengampu {
   id           Int    @id @default(autoincrement()) @db.UnsignedInt
   dosenId      Int    @db.UnsignedInt @map("dosen_id")
   mataKuliahId Int    @db.UnsignedInt @map("mata_kuliah_id")
-  semester     String @db.VarChar(12)
+  semester     String @db.VarChar(50)
 
   dosen      Dosen      @relation(fields: [dosenId], references: [id])
   mataKuliah MataKuliah @relation(fields: [mataKuliahId], references: [id])
@@ -146,13 +149,15 @@ model JadwalPraktikum {
   hari           Hari
   jamMulai       String @map("jam_mulai") @db.VarChar(8)
   jamSelesai     String @map("jam_selesai") @db.VarChar(8)
-  semester       String @db.VarChar(12)
+  semester       String @db.VarChar(50)
   kapasitasGrup  Int    @default(30) @db.UnsignedTinyInt @map("kapasitas_grup")
   aktif          Boolean @default(true)
   kelas          String? @db.VarChar(10)
+  kelasId        Int?    @db.UnsignedInt @map("kelas_id")
   createdAt      DateTime @default(now()) @map("created_at")
 
   mataKuliah        MataKuliah          @relation(fields: [mataKuliahId], references: [id])
+  kelasRef          Kelas?              @relation(fields: [kelasId], references: [id])
   asisten           Asisten?            @relation(fields: [asisenId], references: [id], onDelete: SetNull)
   ruangan           Ruangan?            @relation(fields: [ruanganId], references: [id], onDelete: SetNull)
   pesertaJadwal     PesertaJadwal[]
@@ -312,7 +317,7 @@ model RekapNilaiAkhir {
   id              Int     @id @default(autoincrement()) @db.UnsignedInt
   mahasiswaId     Int     @db.UnsignedInt @map("mahasiswa_id")
   mataKuliahId    Int     @db.UnsignedInt @map("mata_kuliah_id")
-  semester        String  @db.VarChar(12)
+  semester        String  @db.VarChar(50)
   nilaiPraktikum  Decimal? @map("nilai_praktikum") @db.Decimal(5, 2)
   nilaiAsistensi  Decimal? @map("nilai_asistensi") @db.Decimal(5, 2)
   nilaiUts        Decimal? @map("nilai_uts") @db.Decimal(5, 2)
@@ -337,7 +342,7 @@ model Materi {
   tipe         TipeMateri @default(materi)
   filePath     String  @map("file_path") @db.VarChar(255)
   ukuranKb     Int?    @db.UnsignedInt @map("ukuran_kb")
-  semester     String  @db.VarChar(12)
+  semester     String  @db.VarChar(50)
   publishedAt  DateTime? @map("published_at")
   createdAt    DateTime @default(now()) @map("created_at")
 
@@ -367,4 +372,35 @@ model LogAktivitas {
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("log_aktivitas")
+}
+
+model Kelas {
+  id           Int      @id @default(autoincrement()) @db.UnsignedInt
+  namaKelas    String   @db.VarChar(50) @map("nama_kelas")
+  mataKuliahId Int      @db.UnsignedInt @map("mata_kuliah_id")
+  dosenId      Int      @db.UnsignedInt @map("dosen_id")
+  semester     String   @db.VarChar(50)
+  aktif        Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  mataKuliah      MataKuliah        @relation(fields: [mataKuliahId], references: [id])
+  dosen           Dosen             @relation(fields: [dosenId], references: [id])
+  pesertaKelas    PesertaKelas[]
+  jadwalPraktikum JadwalPraktikum[]
+
+  @@unique([namaKelas, mataKuliahId, semester])
+  @@map("kelas")
+}
+
+model PesertaKelas {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  kelasId     Int      @db.UnsignedInt @map("kelas_id")
+  mahasiswaId Int      @db.UnsignedInt @map("mahasiswa_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  kelas     Kelas     @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+  mahasiswa Mahasiswa @relation(fields: [mahasiswaId], references: [id], onDelete: Cascade)
+
+  @@unique([kelasId, mahasiswaId])
+  @@map("peserta_kelas")
 }

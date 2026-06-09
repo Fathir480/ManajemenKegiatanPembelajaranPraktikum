@@ -102,6 +102,19 @@ export default function DosenMateri() {
     }
   };
 
+  const handleDeleteMateri = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this material?')) return;
+    setError('');
+    setSuccess('');
+    try {
+      await api.delete(`/dosen/materi/${id}`);
+      setSuccess('Material deleted successfully!');
+      fetchMateri();
+    } catch (err) {
+      setError(err.message || 'Failed to delete material');
+    }
+  };
+
   return (
     <DashboardLayout title="Upload Material">
       <div className="page-header">
@@ -116,6 +129,11 @@ export default function DosenMateri() {
 
       {success && <div className="alert alert-success mb-6">{success}</div>}
       {error && <div className="alert alert-error mb-6">{error}</div>}
+      {matkul.length === 0 && (
+        <div className="alert alert-error mb-6">
+          You are not assigned as a lecturer for any courses in this semester. Please assign this lecturer to a course via the Admin panel first.
+        </div>
+      )}
 
       <div className="card mb-6">
         <div className="form-group" style={{ maxWidth: '320px', marginBottom: '24px' }}>
@@ -165,15 +183,23 @@ export default function DosenMateri() {
                   </div>
                 </div>
                 
-                <a 
-                  href={`http://localhost:5000${m.filePath}`} 
-                  target="_blank" 
-                  rel="noreferrer" 
-                  className="btn btn-outline btn-sm"
-                  download
-                >
-                  Download File
-                </a>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <a 
+                    href={`http://localhost:5000${m.filePath}`} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="btn btn-outline btn-sm"
+                    download
+                  >
+                    Download File
+                  </a>
+                  <button
+                    onClick={() => handleDeleteMateri(m.id)}
+                    className="btn btn-danger btn-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>

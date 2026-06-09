@@ -102,4 +102,217 @@ router.get('/nilai', async (req, res) => {
   }
 });
 
+// GET semua materi untuk mahasiswa (dari matkul yang diikuti)
+router.get('/materi', async (req, res) => {
+  try {
+    const mahasiswa = await prisma.mahasiswa.findUnique({
+      where: { userId: req.user.id },
+    });
+    if (!mahasiswa) {
+      return res.status(404).json({ message: 'Data mahasiswa tidak ditemukan.' });
+    }
+
+    // Cari seluruh jadwal praktikum yang diikuti mahasiswa ini
+    const pesertaJadwal = await prisma.pesertaJadwal.findMany({
+      where: { mahasiswaId: mahasiswa.id },
+      select: {
+        jadwal: {
+          select: { mataKuliahId: true },
+        },
+      },
+    });
+
+    const matkulIds = [...new Set(pesertaJadwal.map(pj => pj.jadwal.mataKuliahId))];
+
+    // Cari materi untuk mata kuliah tersebut
+    const materi = await prisma.materi.findMany({
+      where: {
+        mataKuliahId: { in: matkulIds },
+      },
+      include: {
+        mataKuliah: {
+          select: { kode: true, nama: true },
+        },
+        dosen: {
+          include: {
+            user: {
+              select: { nama: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(materi);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil materi praktikum.', error: error.message });
+  }
+});
+
+// GET daftar kelas (krs) untuk mahasiswa
+router.get('/kelas', async (req, res) => {
+  try {
+    const mahasiswa = await prisma.mahasiswa.findUnique({
+      where: { userId: req.user.id }
+    });
+    if (!mahasiswa) {
+      return res.status(404).json({ message: 'Data mahasiswa tidak ditemukan.' });
+    }
+
+    const classes = await prisma.kelas.findMany({
+      where: { aktif: true },
+      include: {
+        mataKuliah: {
+          select: { id: true, kode: true, nama: true, sks: true }
+        },
+        dosen: {
+          include: {
+            user: {
+              select: { nama: true }
+            }
+          }
+        },
+        pesertaKelas: {
+          where: { mahasiswaId: mahasiswa.id }
+        },
+        _count: {
+          select: { pesertaKelas: true }
+        }
+      }
+    });
+
+    const formattedClasses = classes.map(c => ({
+      id: c.id,
+      namaKelas: c.namaKelas,
+      mataKuliah: c.mataKuliah,
+      dosen: c.dosen?.user?.nama || '-',
+      semester: c.semester,
+      isEnrolled: c.pesertaKelas.length > 0,
+      studentCount: c._count.pesertaKelas
+    }));
+
+    res.json(formattedClasses);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil data kelas.', error: error.message });
+  }
+});
+
+// POST enroll ke kelas
+router.post('/kelas/enroll', async (req, res) => {
+  try {
+    const { kelasId } = req.body;
+    if (!kelasId) {
+      return res.status(400).json({ message: 'kelasId diperlukan.' });
+    }
+
+    const mahasiswa = await prisma.mahasiswa.findUnique({
+      where: { userId: req.user.id }
+    });
+    if (!mahasiswa) {
+      return res.status(404).json({ message: 'Data mahasiswa tidak ditemukan.' });
+    }
+
+    // Cek kelas aktif
+    const targetKelas = await prisma.kelas.findFirst({
+      where: { id: parseInt(kelasId), aktif: true }
+    });
+    if (!targetKelas) {
+      return res.status(404).json({ message: 'Kelas tidak ditemukan atau tidak aktif.' });
+    }
+
+    // Cek apakah mahasiswa sudah terdaftar di kelas lain dengan mataKuliahId yang sama
+    const existingSameCourse = await prisma.pesertaKelas.findFirst({
+      where: {
+        mahasiswaId: mahasiswa.id,
+        kelas: {
+          mataKuliahId: targetKelas.mataKuliahId
+        }
+      },
+      include: {
+        kelas: true
+      }
+    });
+
+    if (existingSameCourse) {
+      return res.status(400).json({ 
+        message: `Anda sudah terdaftar di kelas '${existingSameCourse.kelas.namaKelas}' untuk mata kuliah yang sama.` 
+      });
+    }
+
+    // Cek apakah sudah terdaftar (fallback)
+    const existing = await prisma.pesertaKelas.findUnique({
+      where: {
+        kelasId_mahasiswaId: {
+          kelasId: parseInt(kelasId),
+          mahasiswaId: mahasiswa.id
+        }
+      }
+    });
+
+    if (existing) {
+      return res.status(400).json({ message: 'Anda sudah terdaftar di kelas ini.' });
+    }
+
+    // Daftar kelas
+    await prisma.pesertaKelas.create({
+      data: {
+        kelasId: parseInt(kelasId),
+        mahasiswaId: mahasiswa.id
+      }
+    });
+
+    res.status(201).json({ message: 'Berhasil mendaftar ke kelas.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mendaftar ke kelas.', error: error.message });
+  }
+});
+
+
+// POST drop dari kelas
+router.post('/kelas/drop', async (req, res) => {
+  try {
+    const { kelasId } = req.body;
+    if (!kelasId) {
+      return res.status(400).json({ message: 'kelasId diperlukan.' });
+    }
+
+    const mahasiswa = await prisma.mahasiswa.findUnique({
+      where: { userId: req.user.id }
+    });
+    if (!mahasiswa) {
+      return res.status(404).json({ message: 'Data mahasiswa tidak ditemukan.' });
+    }
+
+    // Cari pendaftaran
+    const existing = await prisma.pesertaKelas.findUnique({
+      where: {
+        kelasId_mahasiswaId: {
+          kelasId: parseInt(kelasId),
+          mahasiswaId: mahasiswa.id
+        }
+      }
+    });
+
+    if (!existing) {
+      return res.status(400).json({ message: 'Anda tidak terdaftar di kelas ini.' });
+    }
+
+    // Hapus pendaftaran
+    await prisma.pesertaKelas.delete({
+      where: {
+        kelasId_mahasiswaId: {
+          kelasId: parseInt(kelasId),
+          mahasiswaId: mahasiswa.id
+        }
+      }
+    });
+
+    res.json({ message: 'Berhasil keluar dari kelas.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal keluar dari kelas.', error: error.message });
+  }
+});
+
 module.exports = router;
+

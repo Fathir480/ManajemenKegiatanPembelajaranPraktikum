@@ -752,4 +752,186 @@ router.put('/ajuan/:id/validasi', async (req, res) => {
   }
 });
 
+// ── MANAJEMEN KELAS ──────────────────────────────────────────────
+
+// GET semua kelas
+router.get('/kelas', async (req, res) => {
+  try {
+    const kelas = await prisma.kelas.findMany({
+      include: {
+        mataKuliah: true,
+        dosen: {
+          include: { user: { select: { nama: true } } }
+        },
+        _count: {
+          select: { pesertaKelas: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(kelas);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil data kelas.', error: error.message });
+  }
+});
+
+// POST buat kelas baru
+router.post('/kelas', async (req, res) => {
+  try {
+    const { namaKelas, mataKuliahId, dosenId, semester } = req.body;
+    
+    // validasi duplicate
+    const existing = await prisma.kelas.findUnique({
+      where: {
+        namaKelas_mataKuliahId_semester: {
+          namaKelas,
+          mataKuliahId: parseInt(mataKuliahId),
+          semester
+        }
+      }
+    });
+
+    if (existing) {
+      return res.status(400).json({ message: 'Kelas dengan mata kuliah dan semester tersebut sudah ada.' });
+    }
+
+    const newKelas = await prisma.kelas.create({
+      data: {
+        namaKelas,
+        mataKuliahId: parseInt(mataKuliahId),
+        dosenId: parseInt(dosenId),
+        semester
+      }
+    });
+    res.status(201).json(newKelas);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal membuat kelas.', error: error.message });
+  }
+});
+
+// PUT update kelas
+router.put('/kelas/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { namaKelas, mataKuliahId, dosenId, semester, aktif } = req.body;
+
+    const updated = await prisma.kelas.update({
+      where: { id: parseInt(id) },
+      data: {
+        namaKelas,
+        mataKuliahId: parseInt(mataKuliahId),
+        dosenId: parseInt(dosenId),
+        semester,
+        aktif: aktif === 'true' || aktif === true
+      }
+    });
+    res.json(updated);
+  } catch (error) {
+    if (error.code === 'P2002') return res.status(400).json({ message: 'Data kelas duplikat.' });
+    res.status(500).json({ message: 'Gagal update kelas.', error: error.message });
+  }
+});
+
+// DELETE kelas
+router.delete('/kelas/:id', async (req, res) => {
+  try {
+    await prisma.kelas.delete({ where: { id: parseInt(req.params.id) } });
+    res.json({ message: 'Kelas berhasil dihapus.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal menghapus kelas.', error: error.message });
+  }
+});
+
+// GET peserta kelas
+router.get('/kelas/:id/peserta', async (req, res) => {
+  try {
+    const peserta = await prisma.pesertaKelas.findMany({
+      where: { kelasId: parseInt(req.params.id) },
+      include: {
+        mahasiswa: {
+          include: { user: { select: { nama: true } } }
+        }
+      }
+    });
+    res.json(peserta);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil peserta kelas.', error: error.message });
+  }
+});
+
+// POST tambah peserta kelas (bulk)
+router.post('/kelas/:id/peserta', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { mahasiswaIds } = req.body; // array of mahasiswaId
+    
+    if (!mahasiswaIds || !Array.isArray(mahasiswaIds)) {
+      return res.status(400).json({ message: 'mahasiswaIds harus berupa array.' });
+    }
+
+    // 1. Ambil info kelas target untuk mendapatkan mataKuliahId
+    const targetKelas = await prisma.kelas.findUnique({
+      where: { id: parseInt(id) }
+    });
+    if (!targetKelas) {
+      return res.status(404).json({ message: 'Kelas tidak ditemukan.' });
+    }
+
+    // 2. Cek apakah ada mahasiswa yang sudah terdaftar di kelas lain untuk matkul yang sama
+    const duplicateEnrollments = await prisma.pesertaKelas.findFirst({
+      where: {
+        mahasiswaId: { in: mahasiswaIds.map(mid => parseInt(mid)) },
+        kelas: {
+          mataKuliahId: targetKelas.mataKuliahId,
+          NOT: {
+            id: targetKelas.id // kecualikan kelas target itu sendiri
+          }
+        }
+      },
+      include: {
+        mahasiswa: { include: { user: { select: { nama: true } } } },
+        kelas: true
+      }
+    });
+
+    if (duplicateEnrollments) {
+      return res.status(400).json({
+        message: `Mahasiswa '${duplicateEnrollments.mahasiswa.user.nama}' sudah terdaftar di kelas '${duplicateEnrollments.kelas.namaKelas}' untuk mata kuliah yang sama.`
+      });
+    }
+
+    const data = mahasiswaIds.map(mhsId => ({
+      kelasId: parseInt(id),
+      mahasiswaId: parseInt(mhsId)
+    }));
+
+    await prisma.pesertaKelas.createMany({
+      data,
+      skipDuplicates: true // abaikan jika sudah ada
+    });
+
+    res.json({ message: 'Peserta berhasil ditambahkan.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal menambah peserta kelas.', error: error.message });
+  }
+});
+
+// DELETE hapus peserta kelas
+router.delete('/kelas/:id/peserta/:mahasiswaId', async (req, res) => {
+  try {
+    await prisma.pesertaKelas.delete({
+      where: {
+        kelasId_mahasiswaId: {
+          kelasId: parseInt(req.params.id),
+          mahasiswaId: parseInt(req.params.mahasiswaId)
+        }
+      }
+    });
+    res.json({ message: 'Peserta berhasil dihapus.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal menghapus peserta kelas.', error: error.message });
+  }
+});
+
 module.exports = router;
+

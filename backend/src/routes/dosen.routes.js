@@ -194,6 +194,37 @@ router.get('/materi/:mataKuliahId', async (req, res) => {
   }
 });
 
+// DELETE materi
+router.delete('/materi/:id', async (req, res) => {
+  try {
+    const materiId = parseInt(req.params.id);
+    const dosen = await prisma.dosen.findUnique({ where: { userId: req.user.id } });
+    if (!dosen) return res.status(404).json({ message: 'Data dosen tidak ditemukan.' });
+
+    const materi = await prisma.materi.findFirst({
+      where: { id: materiId, dosenId: dosen.id },
+    });
+
+    if (!materi) {
+      return res.status(404).json({ message: 'Materi tidak ditemukan atau Anda tidak berwenang menghapusnya.' });
+    }
+
+    // Hapus file fisik jika ada
+    const filePath = path.join(__dirname, '../..', materi.filePath);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Hapus data dari DB
+    await prisma.materi.delete({ where: { id: materiId } });
+
+    res.json({ message: 'Materi berhasil dihapus.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal menghapus materi.', error: error.message });
+  }
+});
+
+
 // GET semua ajuan yang dikirim dosen ini
 router.get('/ajuan', async (req, res) => {
   try {

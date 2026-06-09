@@ -1,0 +1,46 @@
+.kelas-enroll-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.stat-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background: var(--surface-soft);
+  border: 1px solid var(--hairline);
+  padding: 8px var(--space-4);
+  border-radius: var(--radius-md);
+  min-width: 120px;
+}
+
+.stat-badge-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-badge-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+.badge-status-active {
+  background-color: var(--success-bg);
+  color: var(--success);
+}
+
+.badge-status-inactive {
+  background-color: var(--hairline-strong);
+  color: var(--body-muted);
+}

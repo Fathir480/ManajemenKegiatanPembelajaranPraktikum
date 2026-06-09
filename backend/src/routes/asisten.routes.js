@@ -322,4 +322,48 @@ router.post('/ajuan', async (req, res) => {
   }
 });
 
+// GET semua materi untuk asisten (dari matkul yang diampu/asisteni)
+router.get('/materi', async (req, res) => {
+  try {
+    const asisten = await prisma.asisten.findUnique({
+      where: { userId: req.user.id },
+    });
+    if (!asisten) {
+      return res.status(404).json({ message: 'Data asisten tidak ditemukan.' });
+    }
+
+    // Cari seluruh jadwal praktikum yang diampu/asisteni oleh asisten ini
+    const jadwalPraktikum = await prisma.jadwalPraktikum.findMany({
+      where: { asisenId: asisten.id },
+      select: { mataKuliahId: true },
+    });
+
+    const matkulIds = [...new Set(jadwalPraktikum.map(j => j.mataKuliahId))];
+
+    // Cari materi untuk mata kuliah tersebut
+    const materi = await prisma.materi.findMany({
+      where: {
+        mataKuliahId: { in: matkulIds },
+      },
+      include: {
+        mataKuliah: {
+          select: { kode: true, nama: true },
+        },
+        dosen: {
+          include: {
+            user: {
+              select: { nama: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(materi);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil materi praktikum.', error: error.message });
+  }
+});
+
 module.exports = router;

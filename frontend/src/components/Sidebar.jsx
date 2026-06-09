@@ -8,6 +8,7 @@ const navItems = {
     { to: '/admin/asisten', label: 'Assistants' },
     { to: '/admin/dosen', label: 'Lecturers' },
     { to: '/admin/matkul', label: 'Courses' },
+    { to: '/admin/kelas', label: 'Classes' },
     { to: '/admin/jadwal', label: 'Schedules' },
     { to: '/admin/ajuan', label: 'Requests' },
   ],
@@ -17,6 +18,7 @@ const navItems = {
     { to: '/asisten/absensi', label: 'Attendance & Scanner' },
     { to: '/asisten/nilai', label: 'Grade Input' },
     { to: '/asisten/ajuan', label: 'Schedule Requests' },
+    { to: '/asisten/materi', label: 'Materials' },
   ],
   dosen: [
     { to: '/dosen', label: 'Dashboard', end: true },
@@ -28,9 +30,11 @@ const navItems = {
   praktikan: [
     { to: '/praktikan', label: 'Dashboard', end: true },
     { to: '/praktikan/qr', label: 'My QR Code' },
+    { to: '/praktikan/kelas', label: 'Class Enrollment' },
     { to: '/praktikan/jadwal', label: 'Schedules' },
     { to: '/praktikan/absensi', label: 'Attendance' },
     { to: '/praktikan/nilai', label: 'Grades' },
+    { to: '/praktikan/materi', label: 'Materials' },
   ],
 };
 

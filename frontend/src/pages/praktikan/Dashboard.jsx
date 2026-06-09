@@ -78,6 +78,7 @@ export default function PraktikanDashboard() {
             <div className="grid-2" style={{ gap: '10px' }}>
               {[
                 { href: '/praktikan/jadwal', label: 'View Schedule' },
+                { href: '/praktikan/materi', label: 'View Materials' },
                 { href: '/praktikan/nilai', label: 'View Grades' },
                 { href: '/praktikan/absensi', label: 'Attendance Recap' },
                 { href: '/praktikan/qr', label: 'My QR Code' },

@@ -14,6 +14,7 @@ import KelolaAsisten from './pages/admin/asisten';
 import KelolaDosen from './pages/admin/dosen';
 import KelolaMatkul from './pages/admin/matkul';
 import KelolaJadwal from './pages/admin/jadwal';
+import KelolaKelas from './pages/admin/kelas';
 import ValidasiAjuan from './pages/admin/ajuan';
 
 // Asisten Subpages
@@ -21,6 +22,7 @@ import AsistenSesi from './pages/asisten/sesi';
 import AsistenAbsensi from './pages/asisten/absensi';
 import AsistenNilai from './pages/asisten/nilai';
 import AsistenAjuan from './pages/asisten/ajuan';
+import AsistenMateri from './pages/asisten/materi';
 
 // Dosen Subpages
 import DosenNilai from './pages/dosen/nilai';
@@ -33,6 +35,9 @@ import PraktikanQR from './pages/praktikan/qr';
 import PraktikanJadwal from './pages/praktikan/jadwal';
 import PraktikanAbsensi from './pages/praktikan/absensi';
 import PraktikanNilai from './pages/praktikan/nilai';
+import PraktikanMateri from './pages/praktikan/materi';
+import PraktikanKelas from './pages/praktikan/kelas';
+
 
 // Guard: Redirect ke login kalau belum auth
 function PrivateRoute({ children, allowedRoles }) {
@@ -85,6 +90,9 @@ export default function App() {
         <Route path="/admin/jadwal" element={
           <PrivateRoute allowedRoles={['admin']}><KelolaJadwal /></PrivateRoute>
         } />
+        <Route path="/admin/kelas" element={
+          <PrivateRoute allowedRoles={['admin']}><KelolaKelas /></PrivateRoute>
+        } />
         <Route path="/admin/ajuan" element={
           <PrivateRoute allowedRoles={['admin']}><ValidasiAjuan /></PrivateRoute>
         } />
@@ -104,6 +112,9 @@ export default function App() {
         } />
         <Route path="/asisten/ajuan" element={
           <PrivateRoute allowedRoles={['asisten']}><AsistenAjuan /></PrivateRoute>
+        } />
+        <Route path="/asisten/materi" element={
+          <PrivateRoute allowedRoles={['asisten']}><AsistenMateri /></PrivateRoute>
         } />
 
         {/* Dosen */}
@@ -139,6 +150,13 @@ export default function App() {
         <Route path="/praktikan/nilai" element={
           <PrivateRoute allowedRoles={['praktikan']}><PraktikanNilai /></PrivateRoute>
         } />
+        <Route path="/praktikan/materi" element={
+          <PrivateRoute allowedRoles={['praktikan']}><PraktikanMateri /></PrivateRoute>
+        } />
+        <Route path="/praktikan/kelas" element={
+          <PrivateRoute allowedRoles={['praktikan']}><PraktikanKelas /></PrivateRoute>
+        } />
+
 
         {/* 404 */}
         <Route path="*" element={
