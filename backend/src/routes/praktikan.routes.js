@@ -27,7 +27,24 @@ router.get('/jadwal', async (req, res) => {
     const mahasiswa = await prisma.mahasiswa.findUnique({ where: { userId: req.user.id } });
     if (!mahasiswa) return res.status(404).json({ message: 'Data mahasiswa tidak ditemukan.' });
 
-    const peserta = await prisma.pesertaJadwal.findMany({
+    // 1. Get schedules where student is enrolled in the Class (pesertaKelas -> kelas -> jadwalPraktikum)
+    const classSchedules = await prisma.jadwalPraktikum.findMany({
+      where: {
+        kelasRef: {
+          pesertaKelas: {
+            some: { mahasiswaId: mahasiswa.id }
+          }
+        }
+      },
+      include: {
+        mataKuliah: { select: { nama: true, kode: true } },
+        asisten: { include: { user: { select: { nama: true } } } },
+        ruangan: true,
+      }
+    });
+
+    // 2. Get schedules where student is directly registered (pesertaJadwal - fallback)
+    const directSchedules = await prisma.pesertaJadwal.findMany({
       where: { mahasiswaId: mahasiswa.id },
       include: {
         jadwal: {
@@ -38,8 +55,13 @@ router.get('/jadwal', async (req, res) => {
           },
         },
       },
-    });
-    res.json(peserta.map(p => p.jadwal));
+    }).then(res => res.map(r => r.jadwal));
+
+    // Combine both lists and filter duplicates by schedule ID
+    const allSchedules = [...classSchedules, ...directSchedules];
+    const uniqueSchedules = Array.from(new Map(allSchedules.map(j => [j.id, j])).values());
+
+    res.json(uniqueSchedules);
   } catch (error) {
     res.status(500).json({ message: 'Gagal mengambil jadwal.' });
   }
@@ -112,7 +134,14 @@ router.get('/materi', async (req, res) => {
       return res.status(404).json({ message: 'Data mahasiswa tidak ditemukan.' });
     }
 
-    // Cari seluruh jadwal praktikum yang diikuti mahasiswa ini
+    // 1. Matkul dari kelas yang di-enroll
+    const enrolledClasses = await prisma.pesertaKelas.findMany({
+      where: { mahasiswaId: mahasiswa.id },
+      include: { kelas: true }
+    });
+    const classMatkulIds = enrolledClasses.map(pk => pk.kelas.mataKuliahId);
+
+    // 2. Matkul dari jadwal praktikum yang di-enroll (direct/fallback)
     const pesertaJadwal = await prisma.pesertaJadwal.findMany({
       where: { mahasiswaId: mahasiswa.id },
       select: {
@@ -121,8 +150,9 @@ router.get('/materi', async (req, res) => {
         },
       },
     });
+    const directMatkulIds = pesertaJadwal.map(pj => pj.jadwal.mataKuliahId);
 
-    const matkulIds = [...new Set(pesertaJadwal.map(pj => pj.jadwal.mataKuliahId))];
+    const matkulIds = [...new Set([...classMatkulIds, ...directMatkulIds])];
 
     // Cari materi untuk mata kuliah tersebut
     const materi = await prisma.materi.findMany({

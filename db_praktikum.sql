@@ -88,6 +88,31 @@ CREATE TABLE pengampu (
   CONSTRAINT fk_pengampu_mk    FOREIGN KEY (mata_kuliah_id) REFERENCES mata_kuliah(id)
 );
 
+-- Kelas
+CREATE TABLE kelas (
+  id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nama_kelas     VARCHAR(50)      NOT NULL,
+  mata_kuliah_id INT UNSIGNED      NOT NULL,
+  dosen_id       INT UNSIGNED      NOT NULL,
+  semester       VARCHAR(50)      NOT NULL,
+  aktif          TINYINT(1)       NOT NULL DEFAULT 1,
+  created_at     TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_kelas (nama_kelas, mata_kuliah_id, semester),
+  CONSTRAINT fk_kelas_dosen FOREIGN KEY (dosen_id) REFERENCES dosen(id) ON UPDATE CASCADE,
+  CONSTRAINT fk_kelas_mk FOREIGN KEY (mata_kuliah_id) REFERENCES mata_kuliah(id) ON UPDATE CASCADE
+);
+
+-- Peserta Kelas (KRS)
+CREATE TABLE peserta_kelas (
+  id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  kelas_id     INT UNSIGNED NOT NULL,
+  mahasiswa_id INT UNSIGNED NOT NULL,
+  created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_peserta_kelas (kelas_id, mahasiswa_id),
+  CONSTRAINT fk_pk_kelas FOREIGN KEY (kelas_id) REFERENCES kelas(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_pk_mhs   FOREIGN KEY (mahasiswa_id) REFERENCES mahasiswa(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 -- ============================================================
 -- 3. JADWAL PRAKTIKUM
 -- ============================================================
@@ -111,10 +136,14 @@ CREATE TABLE jadwal_praktikum (
   kapasitas_grup TINYINT UNSIGNED NOT NULL DEFAULT 30,
   aktif          TINYINT(1)    NOT NULL DEFAULT 1,
   created_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  kelas          VARCHAR(10)   NULL,
+  kelas_id       INT UNSIGNED  NULL,
   CONSTRAINT fk_jadwal_mk      FOREIGN KEY (mata_kuliah_id) REFERENCES mata_kuliah(id),
   CONSTRAINT fk_jadwal_asisten FOREIGN KEY (asisten_id)     REFERENCES asisten(id) ON DELETE SET NULL,
-  CONSTRAINT fk_jadwal_ruangan FOREIGN KEY (ruangan_id)     REFERENCES ruangan(id) ON DELETE SET NULL
+  CONSTRAINT fk_jadwal_ruangan FOREIGN KEY (ruangan_id)     REFERENCES ruangan(id) ON DELETE SET NULL,
+  CONSTRAINT fk_jadwal_kelas   FOREIGN KEY (kelas_id)       REFERENCES kelas(id) ON DELETE SET NULL ON UPDATE CASCADE
 );
+
 
 -- Pendaftaran Praktikan ke Jadwal
 CREATE TABLE peserta_jadwal (

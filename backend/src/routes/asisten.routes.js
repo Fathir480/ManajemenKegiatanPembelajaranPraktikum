@@ -88,6 +88,17 @@ router.get('/sesi/:id/peserta', async (req, res) => {
       include: {
         jadwal: {
           include: {
+            kelasRef: {
+              include: {
+                pesertaKelas: {
+                  include: {
+                    mahasiswa: {
+                      include: { user: { select: { nama: true, email: true } } },
+                    },
+                  },
+                },
+              },
+            },
             pesertaJadwal: {
               include: {
                 mahasiswa: {
@@ -102,15 +113,22 @@ router.get('/sesi/:id/peserta', async (req, res) => {
     });
     if (!sesi) return res.status(404).json({ message: 'Sesi tidak ditemukan.' });
 
+    let rawPeserta = [];
+    if (sesi.jadwal.kelasId && sesi.jadwal.kelasRef) {
+      rawPeserta = sesi.jadwal.kelasRef.pesertaKelas.map(pk => pk.mahasiswa);
+    } else {
+      rawPeserta = sesi.jadwal.pesertaJadwal.map(pj => pj.mahasiswa);
+    }
+
     // Gabungkan daftar peserta dengan status absensi
-    const peserta = sesi.jadwal.pesertaJadwal.map(p => {
-      const absensiRecord = sesi.absensi.find(a => a.mahasiswaId === p.mahasiswaId);
+    const peserta = rawPeserta.map(m => {
+      const absensiRecord = sesi.absensi.find(a => a.mahasiswaId === m.id);
       return {
-        mahasiswaId: p.mahasiswaId,
-        stambuk: p.mahasiswa.stambuk,
-        qrToken: p.mahasiswa.qrToken,
-        nama: p.mahasiswa.user.nama,
-        email: p.mahasiswa.user.email,
+        mahasiswaId: m.id,
+        stambuk: m.stambuk,
+        qrToken: m.qrToken,
+        nama: m.user.nama,
+        email: m.user.email,
         absensi: absensiRecord || null,
       };
     });
@@ -153,13 +171,40 @@ router.post('/absensi/qr', async (req, res) => {
     if (!mahasiswa) return res.status(404).json({ message: 'QR Code tidak dikenali.' });
 
     // Pastikan mahasiswa terdaftar di jadwal sesi ini
-    const sesi = await prisma.sesiPraktikum.findUnique({ where: { id: parseInt(sesiId) } });
+    const sesi = await prisma.sesiPraktikum.findUnique({
+      where: { id: parseInt(sesiId) },
+      include: { jadwal: true }
+    });
     if (!sesi) return res.status(404).json({ message: 'Sesi tidak ditemukan.' });
 
-    const peserta = await prisma.pesertaJadwal.findUnique({
-      where: { jadwalId_mahasiswaId: { jadwalId: sesi.jadwalId, mahasiswaId: mahasiswa.id } },
-    });
-    if (!peserta) return res.status(403).json({ message: 'Mahasiswa tidak terdaftar di kelas ini.' });
+    let isRegistered = false;
+
+    if (sesi.jadwal.kelasId) {
+      // Cek apakah mahasiswa terdaftar di kelas tersebut
+      const enrolled = await prisma.pesertaKelas.findUnique({
+        where: {
+          kelasId_mahasiswaId: {
+            kelasId: sesi.jadwal.kelasId,
+            mahasiswaId: mahasiswa.id
+          }
+        }
+      });
+      if (enrolled) {
+        isRegistered = true;
+      }
+    } else {
+      // Fallback ke check pesertaJadwal
+      const peserta = await prisma.pesertaJadwal.findUnique({
+        where: { jadwalId_mahasiswaId: { jadwalId: sesi.jadwalId, mahasiswaId: mahasiswa.id } },
+      });
+      if (peserta) {
+        isRegistered = true;
+      }
+    }
+
+    if (!isRegistered) {
+      return res.status(403).json({ message: 'Mahasiswa tidak terdaftar di kelas ini.' });
+    }
 
     // Cek apakah sudah absen
     const sudahAbsen = await prisma.absensi.findUnique({

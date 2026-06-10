@@ -3,6 +3,8 @@ import DashboardLayout from '../../../components/DashboardLayout';
 import { api } from '../../../lib/api';
 import './kelas.css';
 
+const classNames = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'];
+
 export default function KelolaKelas() {
   const [kelas, setKelas] = useState([]);
   const [mataKuliahList, setMataKuliahList] = useState([]);
@@ -310,15 +312,18 @@ export default function KelolaKelas() {
             <form onSubmit={handleFormSubmit} className="login-form">
               <div className="form-group">
                 <label className="form-label">Class Name</label>
-                <input 
-                  type="text" 
+                <select 
                   name="namaKelas" 
-                  className="form-input" 
-                  placeholder="Example: A1 Pemrograman Web"
+                  className="form-select" 
                   required 
                   value={formData.namaKelas} 
                   onChange={handleFormChange} 
-                />
+                >
+                  <option value="" disabled>-- Select Class Name --</option>
+                  {classNames.map(cls => (
+                    <option key={cls} value={cls}>{cls}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-group">

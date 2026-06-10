@@ -473,6 +473,7 @@ router.get('/jadwal', async (req, res) => {
         mataKuliah: { select: { nama: true, kode: true } },
         asisten: { include: { user: { select: { nama: true } } } },
         ruangan: true,
+        kelasRef: true,
       },
       orderBy: [{ hari: 'asc' }, { jamMulai: 'asc' }],
     });
@@ -484,17 +485,32 @@ router.get('/jadwal', async (req, res) => {
 
 router.post('/jadwal', async (req, res) => {
   try {
-    const { mataKuliahId, asisenId, ruanganId, hari, jamMulai, jamSelesai, semester, kapasitasGrup, kelas } = req.body;
+    const { mataKuliahId, asisenId, ruanganId, hari, jamMulai, jamSelesai, semester, kapasitasGrup, kelas, kelasId } = req.body;
 
     const mkId = parseInt(mataKuliahId);
     const roomId = ruanganId ? parseInt(ruanganId) : null;
     const astId = asisenId ? parseInt(asisenId) : null;
+    const kId = kelasId ? parseInt(kelasId) : null;
+
+    let finalKelas = kelas;
+    if (kId) {
+      const targetKelas = await prisma.kelas.findUnique({
+        where: { id: kId }
+      });
+      if (targetKelas) {
+        finalKelas = targetKelas.namaKelas;
+      }
+    }
 
     // ── 1. VALIDASI BENTROK KELAS ──────────────────────────────
-    if (kelas) {
+    if (kId || finalKelas) {
       const classConflict = await prisma.jadwalPraktikum.findFirst({
         where: {
-          kelas, hari, semester,
+          OR: [
+            ...(kId ? [{ kelasId: kId }] : []),
+            ...(finalKelas ? [{ kelas: finalKelas }] : [])
+          ],
+          hari, semester,
           jamMulai: { lt: jamSelesai },
           jamSelesai: { gt: jamMulai }
         },
@@ -502,7 +518,7 @@ router.post('/jadwal', async (req, res) => {
       });
       if (classConflict) {
         return res.status(400).json({ 
-          message: `Bentrok Kelas: Kelas ${kelas} sudah dijadwalkan mengikuti praktikum '${classConflict.mataKuliah?.nama}' pada ${hari} jam ${classConflict.jamMulai}-${classConflict.jamSelesai}.` 
+          message: `Bentrok Kelas: Kelas ${finalKelas || ''} sudah dijadwalkan mengikuti praktikum '${classConflict.mataKuliah?.nama}' pada ${hari} jam ${classConflict.jamMulai}-${classConflict.jamSelesai}.` 
         });
       }
     }
@@ -582,7 +598,8 @@ router.post('/jadwal', async (req, res) => {
         ruanganId: roomId,
         hari, jamMulai, jamSelesai, semester,
         kapasitasGrup: parseInt(kapasitasGrup) || 30,
-        kelas
+        kelas: finalKelas,
+        kelasId: kId
       },
     });
     res.status(201).json({ message: 'Jadwal berhasil ditambahkan tanpa konflik.', data: jadwal });

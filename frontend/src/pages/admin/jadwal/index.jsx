@@ -22,13 +22,12 @@ const dayIndoToEng = {
   'Sabtu': 'Saturday'
 };
 
-const classOptions = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'];
-
 export default function KelolaJadwal() {
   const [jadwal, setJadwal] = useState([]);
   const [matkul, setMatkul] = useState([]);
   const [asisten, setAsisten] = useState([]);
   const [ruangan, setRuangan] = useState([]);
+  const [kelasDataList, setKelasDataList] = useState([]);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
@@ -48,22 +47,24 @@ export default function KelolaJadwal() {
     jamSelesai: '09:30',
     semester: '2024/2025 Even',
     kapasitasGrup: 30,
-    kelas: 'A1'
+    kelasId: ''
   });
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [jadwalData, matkulData, asistenData, ruanganData] = await Promise.all([
+      const [jadwalData, matkulData, asistenData, ruanganData, kelasData] = await Promise.all([
         api.get('/admin/jadwal'),
         api.get('/admin/matkul'),
         api.get('/admin/asisten'),
-        api.get('/admin/ruangan')
+        api.get('/admin/ruangan'),
+        api.get('/admin/kelas')
       ]);
       setJadwal(jadwalData);
       setMatkul(matkulData.filter(m => m.aktif));
       setAsisten(asistenData);
       setRuangan(ruanganData);
+      setKelasDataList(kelasData);
     } catch (err) {
       setError(err.message || 'Failed to fetch scheduling data');
     } finally {
@@ -86,7 +87,7 @@ export default function KelolaJadwal() {
       jamSelesai: '09:30',
       semester: '2024/2025 Even',
       kapasitasGrup: 30,
-      kelas: 'A1'
+      kelasId: ''
     });
     setIsModalOpen(true);
   };
@@ -104,6 +105,14 @@ export default function KelolaJadwal() {
         }));
         return;
       }
+    }
+    if (name === 'mataKuliahId') {
+      setFormData(prev => ({
+        ...prev,
+        mataKuliahId: value,
+        kelasId: '' // Reset selected class when course changes
+      }));
+      return;
     }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -493,15 +502,24 @@ export default function KelolaJadwal() {
                 <div className="form-group">
                   <label className="form-label">Class</label>
                   <select
-                    name="kelas"
+                    name="kelasId"
                     className="form-select"
                     required
-                    value={formData.kelas}
+                    value={formData.kelasId}
                     onChange={handleFormChange}
+                    disabled={!formData.mataKuliahId}
                   >
-                    {classOptions.map(cls => (
-                      <option key={cls} value={cls}>{cls}</option>
-                    ))}
+                    <option value="" disabled>
+                      {!formData.mataKuliahId ? '-- Select Course First --' : '-- Select Class --'}
+                    </option>
+                    {kelasDataList
+                      .filter(c => String(c.mataKuliahId) === String(formData.mataKuliahId))
+                      .map(cls => (
+                        <option key={cls.id} value={cls.id}>
+                          {cls.namaKelas}
+                        </option>
+                      ))
+                    }
                   </select>
                 </div>
                 <div className="form-group">
