@@ -378,17 +378,16 @@ model Kelas {
   id           Int      @id @default(autoincrement()) @db.UnsignedInt
   namaKelas    String   @db.VarChar(50) @map("nama_kelas")
   mataKuliahId Int      @db.UnsignedInt @map("mata_kuliah_id")
-  dosenId      Int      @db.UnsignedInt @map("dosen_id")
-  semester     String   @db.VarChar(50)
+  dosenId      Int?     @db.UnsignedInt @map("dosen_id")
   aktif        Boolean  @default(true)
   createdAt    DateTime @default(now()) @map("created_at")
 
   mataKuliah      MataKuliah        @relation(fields: [mataKuliahId], references: [id])
-  dosen           Dosen             @relation(fields: [dosenId], references: [id])
+  dosen           Dosen?            @relation(fields: [dosenId], references: [id], onDelete: SetNull)
   pesertaKelas    PesertaKelas[]
   jadwalPraktikum JadwalPraktikum[]
 
-  @@unique([namaKelas, mataKuliahId, semester])
+  @@unique([namaKelas, mataKuliahId])
   @@map("kelas")
 }
 

@@ -125,7 +125,6 @@ export default function PraktikanKelas() {
                   <th>Course Code & Name</th>
                   <th>Class Group</th>
                   <th>Lecturer</th>
-                  <th>Semester</th>
                   <th>Enrolled</th>
                   <th>Status</th>
                   <th style={{ width: '120px', textAlign: 'center' }}>Action</th>
@@ -143,7 +142,6 @@ export default function PraktikanKelas() {
                     </td>
                     <td style={{ fontWeight: 600 }}>{c.namaKelas}</td>
                     <td>{c.dosen}</td>
-                    <td>{c.semester}</td>
                     <td className="text-mono">{c.studentCount} Students</td>
                     <td>
                       <span className={`badge ${c.isEnrolled ? 'badge-status-active' : 'badge-status-inactive'}`}>
