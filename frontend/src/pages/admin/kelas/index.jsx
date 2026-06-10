@@ -31,7 +31,6 @@ export default function KelolaKelas() {
     namaKelas: '',
     mataKuliahId: '',
     dosenId: '',
-    semester: '',
     aktif: true
   });
 
@@ -66,7 +65,7 @@ export default function KelolaKelas() {
       namaKelas: '',
       mataKuliahId: '',
       dosenId: '',
-      semester: '2024/2025 Ganjil',
+      jumlahKelas: 1,
       aktif: true
     });
     setIsModalOpen(true);
@@ -78,8 +77,7 @@ export default function KelolaKelas() {
     setFormData({
       namaKelas: k.namaKelas,
       mataKuliahId: k.mataKuliahId,
-      dosenId: k.dosenId,
-      semester: k.semester,
+      dosenId: k.dosenId || '',
       aktif: k.aktif
     });
     setIsModalOpen(true);
@@ -115,8 +113,8 @@ export default function KelolaKelas() {
     
     try {
       if (modalMode === 'add') {
-        await api.post('/admin/kelas', formData);
-        setSuccess('Class successfully added');
+        const res = await api.post('/admin/kelas', formData);
+        setSuccess(res.message || 'Class successfully added');
       } else {
         await api.put(`/admin/kelas/${selectedKelas.id}`, formData);
         setSuccess('Class successfully updated');
@@ -235,7 +233,6 @@ export default function KelolaKelas() {
                   <th>Class Name</th>
                   <th>Course</th>
                   <th>Lecturer</th>
-                  <th>Semester</th>
                   <th>Participants</th>
                   <th>Status</th>
                   <th style={{ width: '80px' }}></th>
@@ -247,7 +244,6 @@ export default function KelolaKelas() {
                     <td style={{ fontWeight: 600 }}>{k.namaKelas}</td>
                     <td>{k.mataKuliah?.nama || '-'}</td>
                     <td>{k.dosen?.user?.nama || '-'}</td>
-                    <td>{k.semester}</td>
                     <td>
                       <span 
                         className="badge badge-dosen cursor-pointer" 
@@ -310,21 +306,37 @@ export default function KelolaKelas() {
             </div>
             
             <form onSubmit={handleFormSubmit} className="login-form">
-              <div className="form-group">
-                <label className="form-label">Class Name</label>
-                <select 
-                  name="namaKelas" 
-                  className="form-select" 
-                  required 
-                  value={formData.namaKelas} 
-                  onChange={handleFormChange} 
-                >
-                  <option value="" disabled>-- Select Class Name --</option>
-                  {classNames.map(cls => (
-                    <option key={cls} value={cls}>{cls}</option>
-                  ))}
-                </select>
-              </div>
+              {modalMode === 'add' ? (
+                <div className="form-group">
+                  <label className="form-label">Number of Classes to Create (Jumlah Kelas)</label>
+                  <input 
+                    type="number" 
+                    name="jumlahKelas" 
+                    className="form-input" 
+                    placeholder="Enter quantity (e.g. 3)"
+                    required 
+                    min="1"
+                    value={formData.jumlahKelas || 1} 
+                    onChange={handleFormChange} 
+                  />
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label">Class Name</label>
+                  <select 
+                    name="namaKelas" 
+                    className="form-select" 
+                    required 
+                    value={formData.namaKelas} 
+                    onChange={handleFormChange} 
+                  >
+                    <option value="" disabled>-- Select Class Name --</option>
+                    {classNames.map(cls => (
+                      <option key={cls} value={cls}>{cls}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="form-group">
                 <label className="form-label">Course (Mata Kuliah)</label>
@@ -342,34 +354,22 @@ export default function KelolaKelas() {
                 </select>
               </div>
               
-              <div className="form-group">
-                <label className="form-label">Lecturer (Dosen Pengampu)</label>
-                <select 
-                  name="dosenId" 
-                  className="form-select"
-                  value={formData.dosenId} 
-                  onChange={handleFormChange} 
-                  required
-                >
-                  <option value="">-- Select Lecturer --</option>
-                  {dosenList.map(d => (
-                    <option key={d.id} value={d.id}>{d.nid} - {d.user?.nama}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Semester</label>
-                <input 
-                  type="text" 
-                  name="semester" 
-                  className="form-input" 
-                  placeholder="Example: 2024/2025 Genap"
-                  required 
-                  value={formData.semester} 
-                  onChange={handleFormChange} 
-                />
-              </div>
+              {modalMode === 'edit' && (
+                <div className="form-group">
+                  <label className="form-label">Lecturer (Dosen Pengampu)</label>
+                  <select 
+                    name="dosenId" 
+                    className="form-select"
+                    value={formData.dosenId || ''} 
+                    onChange={handleFormChange}
+                  >
+                    <option value="">-- No Lecturer Assigned --</option>
+                    {dosenList.map(d => (
+                      <option key={d.id} value={d.id}>{d.nid} - {d.user?.nama}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
                 <input 

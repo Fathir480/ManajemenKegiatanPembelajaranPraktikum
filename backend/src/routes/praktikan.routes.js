@@ -217,7 +217,6 @@ router.get('/kelas', async (req, res) => {
       namaKelas: c.namaKelas,
       mataKuliah: c.mataKuliah,
       dosen: c.dosen?.user?.nama || '-',
-      semester: c.semester,
       isEnrolled: c.pesertaKelas.length > 0,
       studentCount: c._count.pesertaKelas
     }));

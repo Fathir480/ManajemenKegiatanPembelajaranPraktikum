@@ -9,6 +9,7 @@ const navItems = {
     { to: '/admin/dosen', label: 'Lecturers' },
     { to: '/admin/matkul', label: 'Courses' },
     { to: '/admin/kelas', label: 'Classes' },
+    { to: '/admin/ruangan', label: 'Labs' },
     { to: '/admin/jadwal', label: 'Schedules' },
     { to: '/admin/ajuan', label: 'Requests' },
   ],

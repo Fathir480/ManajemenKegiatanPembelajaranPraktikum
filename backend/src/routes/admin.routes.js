@@ -723,12 +723,88 @@ router.post('/asisten/demote', async (req, res) => {
 // GET semua ruangan
 router.get('/ruangan', async (req, res) => {
   try {
-    const ruangan = await prisma.ruangan.findMany();
+    const ruangan = await prisma.ruangan.findMany({
+      orderBy: { kode: 'asc' }
+    });
     res.json(ruangan);
   } catch (error) {
     res.status(500).json({ message: 'Gagal mengambil data ruangan.' });
   }
 });
+
+// POST buat ruangan baru
+router.post('/ruangan', async (req, res) => {
+  try {
+    const { kode, nama, kapasitas } = req.body;
+    if (!kode || !nama) {
+      return res.status(400).json({ message: 'Kode dan nama ruangan wajib diisi.' });
+    }
+
+    const existing = await prisma.ruangan.findUnique({ where: { kode } });
+    if (existing) {
+      return res.status(400).json({ message: 'Kode ruangan sudah terdaftar.' });
+    }
+
+    const newRuangan = await prisma.ruangan.create({
+      data: {
+        kode,
+        nama,
+        kapasitas: kapasitas ? parseInt(kapasitas) : null
+      }
+    });
+
+    res.status(201).json(newRuangan);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal membuat ruangan baru.', error: error.message });
+  }
+});
+
+// PUT update ruangan
+router.put('/ruangan/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { kode, nama, kapasitas } = req.body;
+    if (!kode || !nama) {
+      return res.status(400).json({ message: 'Kode dan nama ruangan wajib diisi.' });
+    }
+
+    const existing = await prisma.ruangan.findFirst({
+      where: {
+        kode,
+        NOT: { id: parseInt(id) }
+      }
+    });
+    if (existing) {
+      return res.status(400).json({ message: 'Kode ruangan sudah digunakan oleh ruangan lain.' });
+    }
+
+    const updated = await prisma.ruangan.update({
+      where: { id: parseInt(id) },
+      data: {
+        kode,
+        nama,
+        kapasitas: kapasitas ? parseInt(kapasitas) : null
+      }
+    });
+
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengubah data ruangan.', error: error.message });
+  }
+});
+
+// DELETE ruangan
+router.delete('/ruangan/:id', async (req, res) => {
+  try {
+    await prisma.ruangan.delete({
+      where: { id: parseInt(req.params.id) }
+    });
+    res.json({ message: 'Ruangan berhasil dihapus.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal menghapus ruangan.', error: error.message });
+  }
+});
+
 
 // ── VALIDASI AJUAN PINDAH JADWAL ───────────────────────────
 
@@ -792,53 +868,96 @@ router.get('/kelas', async (req, res) => {
   }
 });
 
-// POST buat kelas baru
+// POST buat kelas baru (otomatis / bulk)
 router.post('/kelas', async (req, res) => {
   try {
-    const { namaKelas, mataKuliahId, dosenId, semester } = req.body;
+    const { mataKuliahId, dosenId, jumlahKelas, namaKelas } = req.body;
     
-    // validasi duplicate
-    const existing = await prisma.kelas.findUnique({
-      where: {
-        namaKelas_mataKuliahId_semester: {
-          namaKelas,
-          mataKuliahId: parseInt(mataKuliahId),
-          semester
-        }
-      }
-    });
+    const mkId = parseInt(mataKuliahId);
+    const dId = dosenId ? parseInt(dosenId) : null;
+    const count = parseInt(jumlahKelas) || 1;
 
-    if (existing) {
-      return res.status(400).json({ message: 'Kelas dengan mata kuliah dan semester tersebut sudah ada.' });
+    if (namaKelas) {
+      // Pembuatan kelas tunggal manual (misal: jika ada override dari custom call)
+      const existing = await prisma.kelas.findUnique({
+        where: {
+          namaKelas_mataKuliahId: {
+            namaKelas,
+            mataKuliahId: mkId
+          }
+        }
+      });
+
+      if (existing) {
+        return res.status(400).json({ message: 'Kelas dengan mata kuliah tersebut sudah ada.' });
+      }
+
+      const newKelas = await prisma.kelas.create({
+        data: {
+          namaKelas,
+          mataKuliahId: mkId,
+          dosenId: dId
+        }
+      });
+      return res.status(201).json(newKelas);
     }
 
-    const newKelas = await prisma.kelas.create({
-      data: {
-        namaKelas,
-        mataKuliahId: parseInt(mataKuliahId),
-        dosenId: parseInt(dosenId),
-        semester
+    // Pembuatan otomatis berurutan (A1, A2, A3...)
+    // 1. Dapatkan kelas yang sudah ada untuk matkul ini
+    const existingClasses = await prisma.kelas.findMany({
+      where: {
+        mataKuliahId: mkId
       }
     });
-    res.status(201).json(newKelas);
+
+    // 2. Cari angka maksimal dari nama kelas berformat A<angka>
+    const numbers = existingClasses
+      .map(k => {
+        const match = k.namaKelas.match(/^A(\d+)$/);
+        return match ? parseInt(match[1]) : 0;
+      })
+      .filter(num => num > 0);
+
+    const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+
+    // 3. Buat kelas sebanyak `count`
+    const createdClasses = [];
+    for (let i = 1; i <= count; i++) {
+      const nextNum = maxNumber + i;
+      const nextClassName = `A${nextNum}`;
+
+      const newKelas = await prisma.kelas.create({
+        data: {
+          namaKelas: nextClassName,
+          mataKuliahId: mkId,
+          dosenId: dId
+        }
+      });
+      createdClasses.push(newKelas);
+    }
+
+    res.status(201).json({
+      message: `Berhasil membuat ${count} kelas secara otomatis.`,
+      data: createdClasses
+    });
   } catch (error) {
     res.status(500).json({ message: 'Gagal membuat kelas.', error: error.message });
   }
 });
 
+
 // PUT update kelas
 router.put('/kelas/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { namaKelas, mataKuliahId, dosenId, semester, aktif } = req.body;
+    const { namaKelas, mataKuliahId, dosenId, aktif } = req.body;
 
     const updated = await prisma.kelas.update({
       where: { id: parseInt(id) },
       data: {
         namaKelas,
         mataKuliahId: parseInt(mataKuliahId),
-        dosenId: parseInt(dosenId),
-        semester,
+        dosenId: dosenId ? parseInt(dosenId) : null,
         aktif: aktif === 'true' || aktif === true
       }
     });
