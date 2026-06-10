@@ -1,0 +1,9 @@
+/* CSS Spesifik untuk Halaman Manajemen Ruangan (Labs) */
+.ruangan-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}

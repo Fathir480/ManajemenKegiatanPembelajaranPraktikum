@@ -706,12 +706,88 @@ router.post('/asisten/demote', async (req, res) => {
 // GET semua ruangan
 router.get('/ruangan', async (req, res) => {
   try {
-    const ruangan = await prisma.ruangan.findMany();
+    const ruangan = await prisma.ruangan.findMany({
+      orderBy: { kode: 'asc' }
+    });
     res.json(ruangan);
   } catch (error) {
     res.status(500).json({ message: 'Gagal mengambil data ruangan.' });
   }
 });
+
+// POST buat ruangan baru
+router.post('/ruangan', async (req, res) => {
+  try {
+    const { kode, nama, kapasitas } = req.body;
+    if (!kode || !nama) {
+      return res.status(400).json({ message: 'Kode dan nama ruangan wajib diisi.' });
+    }
+
+    const existing = await prisma.ruangan.findUnique({ where: { kode } });
+    if (existing) {
+      return res.status(400).json({ message: 'Kode ruangan sudah terdaftar.' });
+    }
+
+    const newRuangan = await prisma.ruangan.create({
+      data: {
+        kode,
+        nama,
+        kapasitas: kapasitas ? parseInt(kapasitas) : null
+      }
+    });
+
+    res.status(201).json(newRuangan);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal membuat ruangan baru.', error: error.message });
+  }
+});
+
+// PUT update ruangan
+router.put('/ruangan/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { kode, nama, kapasitas } = req.body;
+    if (!kode || !nama) {
+      return res.status(400).json({ message: 'Kode dan nama ruangan wajib diisi.' });
+    }
+
+    const existing = await prisma.ruangan.findFirst({
+      where: {
+        kode,
+        NOT: { id: parseInt(id) }
+      }
+    });
+    if (existing) {
+      return res.status(400).json({ message: 'Kode ruangan sudah digunakan oleh ruangan lain.' });
+    }
+
+    const updated = await prisma.ruangan.update({
+      where: { id: parseInt(id) },
+      data: {
+        kode,
+        nama,
+        kapasitas: kapasitas ? parseInt(kapasitas) : null
+      }
+    });
+
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengubah data ruangan.', error: error.message });
+  }
+});
+
+// DELETE ruangan
+router.delete('/ruangan/:id', async (req, res) => {
+  try {
+    await prisma.ruangan.delete({
+      where: { id: parseInt(req.params.id) }
+    });
+    res.json({ message: 'Ruangan berhasil dihapus.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal menghapus ruangan.', error: error.message });
+  }
+});
+
 
 // ── VALIDASI AJUAN PINDAH JADWAL ───────────────────────────
 
