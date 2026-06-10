@@ -474,6 +474,7 @@ router.get('/jadwal', async (req, res) => {
         asisten: { include: { user: { select: { nama: true } } } },
         ruangan: true,
         kelasRef: true,
+        dosen: { include: { user: { select: { nama: true } } } },
       },
       orderBy: [{ hari: 'asc' }, { jamMulai: 'asc' }],
     });
@@ -485,12 +486,13 @@ router.get('/jadwal', async (req, res) => {
 
 router.post('/jadwal', async (req, res) => {
   try {
-    const { mataKuliahId, asisenId, ruanganId, hari, jamMulai, jamSelesai, semester, kapasitasGrup, kelas, kelasId } = req.body;
+    const { mataKuliahId, asisenId, ruanganId, dosenId, hari, jamMulai, jamSelesai, kelas, kelasId } = req.body;
 
     const mkId = parseInt(mataKuliahId);
     const roomId = ruanganId ? parseInt(ruanganId) : null;
     const astId = asisenId ? parseInt(asisenId) : null;
     const kId = kelasId ? parseInt(kelasId) : null;
+    const dosId = dosenId ? parseInt(dosenId) : null;
 
     let finalKelas = kelas;
     if (kId) {
@@ -510,7 +512,7 @@ router.post('/jadwal', async (req, res) => {
             ...(kId ? [{ kelasId: kId }] : []),
             ...(finalKelas ? [{ kelas: finalKelas }] : [])
           ],
-          hari, semester,
+          hari,
           jamMulai: { lt: jamSelesai },
           jamSelesai: { gt: jamMulai }
         },
@@ -527,7 +529,7 @@ router.post('/jadwal', async (req, res) => {
     if (roomId) {
       const roomConflict = await prisma.jadwalPraktikum.findFirst({
         where: {
-          ruanganId: roomId, hari, semester,
+          ruanganId: roomId, hari,
           jamMulai: { lt: jamSelesai },
           jamSelesai: { gt: jamMulai }
         },
@@ -544,7 +546,7 @@ router.post('/jadwal', async (req, res) => {
     if (astId) {
       const asistenConflict = await prisma.jadwalPraktikum.findFirst({
         where: {
-          asisenId: astId, hari, semester,
+          asisenId: astId, hari,
           jamMulai: { lt: jamSelesai },
           jamSelesai: { gt: jamMulai }
         },
@@ -558,35 +560,20 @@ router.post('/jadwal', async (req, res) => {
     }
 
     // ── 4. VALIDASI BENTROK DOSEN ──────────────────────────────
-    const pengampuList = await prisma.pengampu.findMany({ where: { mataKuliahId: mkId } });
-    const dosenIds = pengampuList.map(p => p.dosenId);
-    
-    if (dosenIds.length > 0) {
+    if (dosId) {
       const dosenConflict = await prisma.jadwalPraktikum.findFirst({
         where: {
-          hari, semester,
+          dosenId: dosId,
+          hari,
           jamMulai: { lt: jamSelesai },
-          jamSelesai: { gt: jamMulai },
-          mataKuliah: {
-            pengampu: {
-              some: { dosenId: { in: dosenIds } }
-            }
-          }
+          jamSelesai: { gt: jamMulai }
         },
-        include: { 
-          mataKuliah: { 
-            include: { 
-              pengampu: { 
-                include: { dosen: { include: { user: { select: { nama: true } } } } } 
-              } 
-            } 
-          } 
-        }
+        include: { dosen: { include: { user: { select: { nama: true } } } }, mataKuliah: { select: { nama: true } } }
       });
       if (dosenConflict) {
-        const dosenNama = dosenConflict.mataKuliah?.pengampu[0]?.dosen?.user?.nama || 'Dosen Pengampu';
+        const dosenNama = dosenConflict.dosen?.user?.nama || 'Dosen';
         return res.status(400).json({ 
-          message: `Bentrok Dosen: Dosen pengampu (${dosenNama}) sudah memiliki jadwal bimbingan/kuliah '${dosenConflict.mataKuliah?.nama}' pada ${hari} jam ${dosenConflict.jamMulai}-${dosenConflict.jamSelesai}.` 
+          message: `Bentrok Dosen: Dosen ${dosenNama} sudah memiliki jadwal bimbingan/praktikum '${dosenConflict.mataKuliah?.nama}' pada ${hari} jam ${dosenConflict.jamMulai}-${dosenConflict.jamSelesai}.` 
         });
       }
     }
@@ -596,8 +583,10 @@ router.post('/jadwal', async (req, res) => {
         mataKuliahId: mkId,
         asisenId: astId,
         ruanganId: roomId,
-        hari, jamMulai, jamSelesai, semester,
-        kapasitasGrup: parseInt(kapasitasGrup) || 30,
+        dosenId: dosId,
+        hari,
+        jamMulai,
+        jamSelesai,
         kelas: finalKelas,
         kelasId: kId
       },

@@ -27,6 +27,7 @@ export default function KelolaJadwal() {
   const [matkul, setMatkul] = useState([]);
   const [asisten, setAsisten] = useState([]);
   const [ruangan, setRuangan] = useState([]);
+  const [dosen, setDosen] = useState([]);
   const [kelasDataList, setKelasDataList] = useState([]);
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,30 +42,31 @@ export default function KelolaJadwal() {
     mataKuliahId: '',
     asisenId: '',
     ruanganId: '',
+    dosenId: '',
     hari: 'Senin',
     sesi: '1',
     jamMulai: '07:00',
     jamSelesai: '09:30',
-    semester: '2024/2025 Even',
-    kapasitasGrup: 30,
     kelasId: ''
   });
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [jadwalData, matkulData, asistenData, ruanganData, kelasData] = await Promise.all([
+      const [jadwalData, matkulData, asistenData, ruanganData, kelasData, dosenData] = await Promise.all([
         api.get('/admin/jadwal'),
         api.get('/admin/matkul'),
         api.get('/admin/asisten'),
         api.get('/admin/ruangan'),
-        api.get('/admin/kelas')
+        api.get('/admin/kelas'),
+        api.get('/admin/dosen')
       ]);
       setJadwal(jadwalData);
       setMatkul(matkulData.filter(m => m.aktif));
       setAsisten(asistenData);
       setRuangan(ruanganData);
       setKelasDataList(kelasData);
+      setDosen(dosenData);
     } catch (err) {
       setError(err.message || 'Failed to fetch scheduling data');
     } finally {
@@ -81,12 +83,11 @@ export default function KelolaJadwal() {
       mataKuliahId: '',
       asisenId: '',
       ruanganId: '',
+      dosenId: '',
       hari: 'Senin',
       sesi: '1',
       jamMulai: '07:00',
       jamSelesai: '09:30',
-      semester: '2024/2025 Even',
-      kapasitasGrup: 30,
       kelasId: ''
     });
     setIsModalOpen(true);
@@ -143,7 +144,7 @@ export default function KelolaJadwal() {
         );
         if (cellJadwal.length > 0) {
           const text = cellJadwal.map(j => 
-            `[${j.mataKuliah?.kode}] ${j.mataKuliah?.nama}\nClass: ${j.kelas || '-'}\nLab: ${j.ruangan?.nama || '-'}\nAssistant: ${j.asisten?.user?.nama || '-'}`
+            `[${j.mataKuliah?.kode}] ${j.mataKuliah?.nama}\nClass: ${j.kelas || '-'}\nLab: ${j.ruangan?.nama || '-'}\nLecturer: ${j.dosen?.user?.nama || '-'}\nAssistant: ${j.asisten?.user?.nama || '-'}`
           ).join('\n\n');
           rowData.push(text);
         } else {
@@ -176,6 +177,7 @@ export default function KelolaJadwal() {
     j.mataKuliah?.nama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     j.mataKuliah?.kode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     j.asisten?.user?.nama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    j.dosen?.user?.nama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     j.hari?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     dayIndoToEng[j.hari]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     j.kelas?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -286,8 +288,9 @@ export default function KelolaJadwal() {
                                     <div className="matrix-card-title">{j.mataKuliah?.nama}</div>
                                     <div className="matrix-card-details">
                                       <div className="matrix-detail-item">Lab: {j.ruangan?.nama || 'Lab TBD'}</div>
+                                      <div className="matrix-detail-item">Lec: {j.dosen?.user?.nama || 'No Lecturer'}</div>
                                       <div className="matrix-detail-item">Asst: {j.asisten?.user?.nama || 'No Assistant'}</div>
-                                      <div className="matrix-detail-item">Cap: {j.kapasitasGrup} Max Students</div>
+                                      <div className="matrix-detail-item">Cap: {j.ruangan?.kapasitas || '-'} Students</div>
                                     </div>
                                   </div>
                                 );
@@ -317,12 +320,12 @@ export default function KelolaJadwal() {
                 <thead>
                   <tr>
                     <th>Course / Practicum</th>
+                    <th>Lecturer</th>
                     <th>Assigned Assistant</th>
                     <th>Day & Time</th>
                     <th>Class</th>
                     <th>Room</th>
                     <th>Capacity</th>
-                    <th>Semester</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -335,6 +338,7 @@ export default function KelolaJadwal() {
                           {j.mataKuliah?.kode}
                         </span>
                       </td>
+                      <td>{j.dosen?.user?.nama || '-'}</td>
                       <td>
                         {j.asisten ? (
                           <div>
@@ -362,8 +366,7 @@ export default function KelolaJadwal() {
                         </span>
                       </td>
                       <td>{j.ruangan?.nama || '-'}</td>
-                      <td>{j.kapasitasGrup} students</td>
-                      <td className="text-mono" style={{ fontSize: '12px' }}>{j.semester}</td>
+                      <td>{j.ruangan?.kapasitas ? `${j.ruangan.kapasitas} students` : '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -421,6 +424,23 @@ export default function KelolaJadwal() {
                 </div>
                 
                 <div className="form-group">
+                  <label className="form-label">Lecturer (Dosen) (Optional)</label>
+                  <select 
+                    name="dosenId" 
+                    className="form-select" 
+                    value={formData.dosenId} 
+                    onChange={handleFormChange}
+                  >
+                    <option value="">-- Select Lecturer --</option>
+                    {dosen.map(d => (
+                      <option key={d.id} value={d.id}>{d.nid} - {d.user?.nama}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid-2">
+                <div className="form-group">
                   <label className="form-label">Lab Room (Optional)</label>
                   <select 
                     name="ruanganId" 
@@ -434,9 +454,7 @@ export default function KelolaJadwal() {
                     ))}
                   </select>
                 </div>
-              </div>
 
-              <div className="grid-2">
                 <div className="form-group">
                   <label className="form-label">Day</label>
                   <select 
@@ -454,7 +472,9 @@ export default function KelolaJadwal() {
                     <option value="Sabtu">Saturday</option>
                   </select>
                 </div>
+              </div>
 
+              <div className="grid-2">
                 <div className="form-group">
                   <label className="form-label">Select Practicum Session</label>
                   <select 
@@ -469,36 +489,7 @@ export default function KelolaJadwal() {
                     ))}
                   </select>
                 </div>
-              </div>
 
-              <div className="grid-2">
-                <div className="form-group">
-                  <label className="form-label">Start Time</label>
-                  <input 
-                    type="text" 
-                    name="jamMulai" 
-                    className="form-input" 
-                    required 
-                    readOnly
-                    style={{ background: 'var(--bg-muted)', cursor: 'not-allowed' }}
-                    value={formData.jamMulai} 
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">End Time</label>
-                  <input 
-                    type="text" 
-                    name="jamSelesai" 
-                    className="form-input" 
-                    required 
-                    readOnly
-                    style={{ background: 'var(--bg-muted)', cursor: 'not-allowed' }}
-                    value={formData.jamSelesai} 
-                  />
-                </div>
-              </div>
-
-              <div className="grid-3">
                 <div className="form-group">
                   <label className="form-label">Class</label>
                   <select
@@ -521,29 +512,6 @@ export default function KelolaJadwal() {
                       ))
                     }
                   </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Group Capacity</label>
-                  <input 
-                    type="number" 
-                    name="kapasitasGrup" 
-                    className="form-input" 
-                    required 
-                    min="1"
-                    value={formData.kapasitasGrup} 
-                    onChange={handleFormChange} 
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Semester</label>
-                  <input 
-                    type="text" 
-                    name="semester" 
-                    className="form-input" 
-                    required 
-                    value={formData.semester} 
-                    onChange={handleFormChange} 
-                  />
                 </div>
               </div>
 

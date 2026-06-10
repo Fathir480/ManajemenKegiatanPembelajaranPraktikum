@@ -72,10 +72,11 @@ model Dosen {
   nid          String  @unique @db.VarChar(20)
   spesialisasi String? @db.VarChar(100)
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pengampu  Pengampu[]
-  materi    Materi[]
-  kelas     Kelas[]
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pengampu        Pengampu[]
+  materi          Materi[]
+  kelas           Kelas[]
+  jadwalPraktikum JadwalPraktikum[]
 
   @@map("dosen")
 }
@@ -146,11 +147,10 @@ model JadwalPraktikum {
   mataKuliahId   Int    @db.UnsignedInt @map("mata_kuliah_id")
   asisenId       Int?   @db.UnsignedInt @map("asisten_id")
   ruanganId      Int?   @db.UnsignedInt @map("ruangan_id")
+  dosenId        Int?   @db.UnsignedInt @map("dosen_id")
   hari           Hari
   jamMulai       String @map("jam_mulai") @db.VarChar(8)
   jamSelesai     String @map("jam_selesai") @db.VarChar(8)
-  semester       String @db.VarChar(50)
-  kapasitasGrup  Int    @default(30) @db.UnsignedTinyInt @map("kapasitas_grup")
   aktif          Boolean @default(true)
   kelas          String? @db.VarChar(10)
   kelasId        Int?    @db.UnsignedInt @map("kelas_id")
@@ -159,6 +159,7 @@ model JadwalPraktikum {
   mataKuliah        MataKuliah          @relation(fields: [mataKuliahId], references: [id])
   kelasRef          Kelas?              @relation(fields: [kelasId], references: [id])
   asisten           Asisten?            @relation(fields: [asisenId], references: [id], onDelete: SetNull)
+  dosen             Dosen?              @relation(fields: [dosenId], references: [id], onDelete: SetNull)
   ruangan           Ruangan?            @relation(fields: [ruanganId], references: [id], onDelete: SetNull)
   pesertaJadwal     PesertaJadwal[]
   sesiPraktikum     SesiPraktikum[]
