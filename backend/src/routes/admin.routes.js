@@ -473,26 +473,40 @@ router.get('/jadwal', async (req, res) => {
         mataKuliah: { select: { nama: true, kode: true } },
         asisten: { include: { user: { select: { nama: true } } } },
         ruangan: true,
-        kelasRef: true,
-        dosen: { include: { user: { select: { nama: true } } } },
+        kelasRef: {
+          include: {
+            dosen: { include: { user: { select: { nama: true } } } }
+          }
+        }
       },
       orderBy: [{ hari: 'asc' }, { jamMulai: 'asc' }],
     });
-    res.json(jadwal);
+
+    const formatted = jadwal.map(j => ({
+      ...j,
+      dosen: j.kelasRef?.dosen || null
+    }));
+
+    res.json(formatted);
   } catch (error) {
-    res.status(500).json({ message: 'Gagal mengambil jadwal.' });
+    res.status(500).json({ message: 'Gagal mengambil jadwal.', error: error.message });
   }
 });
 
 router.post('/jadwal', async (req, res) => {
   try {
-    const { mataKuliahId, asisenId, ruanganId, dosenId, hari, jamMulai, jamSelesai, kelas, kelasId } = req.body;
+    const { mataKuliahId, asisenId, ruanganId, dosenId, hari, jamMulai, jamSelesai, kelas, kelasId, semester } = req.body;
+
+    if (!mataKuliahId || !asisenId || !ruanganId || !dosenId || !hari || !jamMulai || !jamSelesai || (!kelas && !kelasId)) {
+      return res.status(400).json({ message: 'Semua kolom (Mata Kuliah, Asisten, Ruangan, Dosen, Hari, Sesi, dan Kelas) wajib diisi.' });
+    }
 
     const mkId = parseInt(mataKuliahId);
     const roomId = ruanganId ? parseInt(ruanganId) : null;
     const astId = asisenId ? parseInt(asisenId) : null;
     const kId = kelasId ? parseInt(kelasId) : null;
     const dosId = dosenId ? parseInt(dosenId) : null;
+    const finalSemester = semester || '2024/2025 Genap';
 
     let finalKelas = kelas;
     if (kId) {
@@ -513,6 +527,7 @@ router.post('/jadwal', async (req, res) => {
             ...(finalKelas ? [{ kelas: finalKelas }] : [])
           ],
           hari,
+          semester: finalSemester,
           jamMulai: { lt: jamSelesai },
           jamSelesai: { gt: jamMulai }
         },
@@ -530,6 +545,7 @@ router.post('/jadwal', async (req, res) => {
       const roomConflict = await prisma.jadwalPraktikum.findFirst({
         where: {
           ruanganId: roomId, hari,
+          semester: finalSemester,
           jamMulai: { lt: jamSelesai },
           jamSelesai: { gt: jamMulai }
         },
@@ -547,6 +563,7 @@ router.post('/jadwal', async (req, res) => {
       const asistenConflict = await prisma.jadwalPraktikum.findFirst({
         where: {
           asisenId: astId, hari,
+          semester: finalSemester,
           jamMulai: { lt: jamSelesai },
           jamSelesai: { gt: jamMulai }
         },
@@ -560,22 +577,50 @@ router.post('/jadwal', async (req, res) => {
     }
 
     // ── 4. VALIDASI BENTROK DOSEN ──────────────────────────────
-    if (dosId) {
+    let finalDosenId = dosId;
+    if (!finalDosenId && kId) {
+      const targetKelas = await prisma.kelas.findUnique({
+        where: { id: kId }
+      });
+      if (targetKelas) {
+        finalDosenId = targetKelas.dosenId;
+      }
+    }
+
+    if (finalDosenId) {
       const dosenConflict = await prisma.jadwalPraktikum.findFirst({
         where: {
-          dosenId: dosId,
+          kelasRef: {
+            dosenId: finalDosenId
+          },
           hari,
+          semester: finalSemester,
           jamMulai: { lt: jamSelesai },
           jamSelesai: { gt: jamMulai }
         },
-        include: { dosen: { include: { user: { select: { nama: true } } } }, mataKuliah: { select: { nama: true } } }
+        include: {
+          mataKuliah: { select: { nama: true } },
+          kelasRef: {
+            include: {
+              dosen: { include: { user: { select: { nama: true } } } }
+            }
+          }
+        }
       });
       if (dosenConflict) {
-        const dosenNama = dosenConflict.dosen?.user?.nama || 'Dosen';
+        const dosenNama = dosenConflict.kelasRef?.dosen?.user?.nama || 'Dosen';
         return res.status(400).json({ 
-          message: `Bentrok Dosen: Dosen ${dosenNama} sudah memiliki jadwal bimbingan/praktikum '${dosenConflict.mataKuliah?.nama}' pada ${hari} jam ${dosenConflict.jamMulai}-${dosenConflict.jamSelesai}.` 
+          message: `Bentrok Dosen: Dosen ${dosenNama} sudah memiliki jadwal mengampu kelas '${dosenConflict.kelasRef?.namaKelas}' untuk praktikum '${dosenConflict.mataKuliah?.nama}' pada ${hari} jam ${dosenConflict.jamMulai}-${dosenConflict.jamSelesai}.` 
         });
       }
+    }
+
+    // Update the class to assign the selected lecturer
+    if (kId && dosId) {
+      await prisma.kelas.update({
+        where: { id: kId },
+        data: { dosenId: dosId }
+      });
     }
 
     const jadwal = await prisma.jadwalPraktikum.create({
@@ -583,10 +628,10 @@ router.post('/jadwal', async (req, res) => {
         mataKuliahId: mkId,
         asisenId: astId,
         ruanganId: roomId,
-        dosenId: dosId,
         hari,
         jamMulai,
         jamSelesai,
+        semester: finalSemester,
         kelas: finalKelas,
         kelasId: kId
       },
@@ -594,6 +639,509 @@ router.post('/jadwal', async (req, res) => {
     res.status(201).json({ message: 'Jadwal berhasil ditambahkan tanpa konflik.', data: jadwal });
   } catch (error) {
     res.status(500).json({ message: 'Gagal menambah jadwal.', error: error.message });
+  }
+});
+
+// PUT update jadwal
+router.put('/jadwal/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { mataKuliahId, asisenId, ruanganId, dosenId, hari, jamMulai, jamSelesai, kelas, kelasId, semester } = req.body;
+
+    if (!mataKuliahId || !asisenId || !ruanganId || !dosenId || !hari || !jamMulai || !jamSelesai || (!kelas && !kelasId)) {
+      return res.status(400).json({ message: 'Semua kolom (Mata Kuliah, Asisten, Ruangan, Dosen, Hari, Sesi, dan Kelas) wajib diisi.' });
+    }
+
+    const mkId = parseInt(mataKuliahId);
+    const roomId = ruanganId ? parseInt(ruanganId) : null;
+    const astId = asisenId ? parseInt(asisenId) : null;
+    const kId = kelasId ? parseInt(kelasId) : null;
+    const dosId = dosenId ? parseInt(dosenId) : null;
+    const finalSemester = semester || '2024/2025 Genap';
+
+    let finalKelas = kelas;
+    if (kId) {
+      const targetKelas = await prisma.kelas.findUnique({
+        where: { id: kId }
+      });
+      if (targetKelas) {
+        finalKelas = targetKelas.namaKelas;
+      }
+    }
+
+    // ── 1. VALIDASI BENTROK KELAS ──────────────────────────────
+    if (kId || finalKelas) {
+      const classConflict = await prisma.jadwalPraktikum.findFirst({
+        where: {
+          OR: [
+            ...(kId ? [{ kelasId: kId }] : []),
+            ...(finalKelas ? [{ kelas: finalKelas }] : [])
+          ],
+          hari,
+          semester: finalSemester,
+          jamMulai: { lt: jamSelesai },
+          jamSelesai: { gt: jamMulai },
+          NOT: { id }
+        },
+        include: { mataKuliah: { select: { nama: true } } }
+      });
+      if (classConflict) {
+        return res.status(400).json({ 
+          message: `Bentrok Kelas: Kelas ${finalKelas || ''} sudah dijadwalkan mengikuti praktikum '${classConflict.mataKuliah?.nama}' pada ${hari} jam ${classConflict.jamMulai}-${classConflict.jamSelesai}.` 
+        });
+      }
+    }
+
+    // ── 2. VALIDASI BENTROK RUANGAN ────────────────────────────
+    if (roomId) {
+      const roomConflict = await prisma.jadwalPraktikum.findFirst({
+        where: {
+          ruanganId: roomId, hari,
+          semester: finalSemester,
+          jamMulai: { lt: jamSelesai },
+          jamSelesai: { gt: jamMulai },
+          NOT: { id }
+        },
+        include: { ruangan: true, mataKuliah: { select: { nama: true } } }
+      });
+      if (roomConflict) {
+        return res.status(400).json({ 
+          message: `Bentrok Ruangan: Ruangan ${roomConflict.ruangan?.nama} sedang digunakan untuk praktikum '${roomConflict.mataKuliah?.nama}' pada ${hari} jam ${roomConflict.jamMulai}-${roomConflict.jamSelesai}.` 
+        });
+      }
+    }
+
+    // ── 3. VALIDASI BENTROK ASISTEN ────────────────────────────
+    if (astId) {
+      const asistenConflict = await prisma.jadwalPraktikum.findFirst({
+        where: {
+          asisenId: astId, hari,
+          semester: finalSemester,
+          jamMulai: { lt: jamSelesai },
+          jamSelesai: { gt: jamMulai },
+          NOT: { id }
+        },
+        include: { asisten: { include: { user: { select: { nama: true } } } }, mataKuliah: { select: { nama: true } } }
+      });
+      if (asistenConflict) {
+        return res.status(400).json({ 
+          message: `Bentrok Asisten: Asisten ${asistenConflict.asisten?.user?.nama} sedang mendampingi praktikum '${asistenConflict.mataKuliah?.nama}' pada ${hari} jam ${asistenConflict.jamMulai}-${asistenConflict.jamSelesai}.` 
+        });
+      }
+    }
+
+    // ── 4. VALIDASI BENTROK DOSEN ──────────────────────────────
+    let finalDosenId = dosId;
+    if (!finalDosenId && kId) {
+      const targetKelas = await prisma.kelas.findUnique({
+        where: { id: kId }
+      });
+      if (targetKelas) {
+        finalDosenId = targetKelas.dosenId;
+      }
+    }
+
+    if (finalDosenId) {
+      const dosenConflict = await prisma.jadwalPraktikum.findFirst({
+        where: {
+          kelasRef: {
+            dosenId: finalDosenId
+          },
+          hari,
+          semester: finalSemester,
+          jamMulai: { lt: jamSelesai },
+          jamSelesai: { gt: jamMulai },
+          NOT: { id }
+        },
+        include: {
+          mataKuliah: { select: { nama: true } },
+          kelasRef: {
+            include: {
+              dosen: { include: { user: { select: { nama: true } } } }
+            }
+          }
+        }
+      });
+      if (dosenConflict) {
+        const dosenNama = dosenConflict.kelasRef?.dosen?.user?.nama || 'Dosen';
+        return res.status(400).json({ 
+          message: `Bentrok Dosen: Dosen ${dosenNama} sudah memiliki jadwal mengampu kelas '${dosenConflict.kelasRef?.namaKelas}' untuk praktikum '${dosenConflict.mataKuliah?.nama}' pada ${hari} jam ${dosenConflict.jamMulai}-${dosenConflict.jamSelesai}.` 
+        });
+      }
+    }
+
+    // Update the class to assign the selected lecturer
+    if (kId && dosId) {
+      await prisma.kelas.update({
+        where: { id: kId },
+        data: { dosenId: dosId }
+      });
+    }
+
+    const updatedJadwal = await prisma.jadwalPraktikum.update({
+      where: { id },
+      data: {
+        mataKuliahId: mkId,
+        asisenId: astId,
+        ruanganId: roomId,
+        hari,
+        jamMulai,
+        jamSelesai,
+        semester: finalSemester,
+        kelas: finalKelas,
+        kelasId: kId
+      },
+    });
+    res.json({ message: 'Jadwal berhasil diubah tanpa konflik.', data: updatedJadwal });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengubah jadwal.', error: error.message });
+  }
+});
+
+// DELETE hapus jadwal
+router.delete('/jadwal/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    await prisma.$transaction([
+      prisma.pesertaJadwal.deleteMany({ where: { jadwalId: id } }),
+      prisma.sesiPraktikum.deleteMany({ where: { jadwalId: id } }),
+      prisma.ajuanPindahJadwal.deleteMany({
+        where: {
+          OR: [
+            { jadwalAsalId: id },
+            { jadwalTujuanId: id }
+          ]
+        }
+      }),
+      prisma.jadwalPraktikum.delete({ where: { id } })
+    ]);
+
+    res.json({ message: 'Jadwal berhasil dihapus.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal menghapus jadwal.', error: error.message });
+  }
+});
+
+// POST impor massal jadwal (Excel)
+router.post('/jadwal/bulk', async (req, res) => {
+  try {
+    const { items } = req.body; // Array of { courseCode, assistantStambuk, roomCode, lecturerNid, day, jamMulai, jamSelesai, className, semester }
+    if (!Array.isArray(items)) return res.status(400).json({ message: 'Data items harus berupa array.' });
+
+    let successCount = 0;
+    let skipCount = 0;
+    const errors = [];
+
+    for (const item of items) {
+      try {
+        const { courseCode, assistantStambuk, roomCode, lecturerNid, day, jamMulai, jamSelesai, className, semester } = item;
+
+        if (!courseCode || !roomCode || !day || !jamMulai || !jamSelesai || !className) {
+          skipCount++;
+          errors.push(`Jalur dilewati karena data tidak lengkap untuk kelas ${className || '-'}`);
+          continue;
+        }
+
+        const finalSemester = semester || '2024/2025 Genap';
+
+        // Validate Day enum
+        const validDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        let resolvedDay = day.trim();
+        // Capitalize day name (e.g. senin -> Senin)
+        resolvedDay = resolvedDay.charAt(0).toUpperCase() + resolvedDay.slice(1).toLowerCase();
+        if (!validDays.includes(resolvedDay)) {
+          // Check English names
+          const engToIndo = {
+            'monday': 'Senin', 'tuesday': 'Selasa', 'wednesday': 'Rabu',
+            'thursday': 'Kamis', 'friday': 'Jumat', 'saturday': 'Sabtu'
+          };
+          const engLower = resolvedDay.toLowerCase();
+          if (engToIndo[engLower]) {
+            resolvedDay = engToIndo[engLower];
+          } else {
+            skipCount++;
+            errors.push(`Hari '${day}' tidak valid. Gunakan Senin-Sabtu atau Monday-Saturday.`);
+            continue;
+          }
+        }
+
+        // 1. Resolve MataKuliah by kode
+        const mk = await prisma.mataKuliah.findUnique({
+          where: { kode: courseCode }
+        });
+        if (!mk) {
+          skipCount++;
+          errors.push(`Matakuliah dengan kode ${courseCode} tidak ditemukan.`);
+          continue;
+        }
+
+        // 2. Resolve Ruangan by kode
+        const room = await prisma.ruangan.findUnique({
+          where: { kode: roomCode }
+        });
+        if (!room) {
+          skipCount++;
+          errors.push(`Ruangan dengan kode ${roomCode} tidak ditemukan.`);
+          continue;
+        }
+
+        // 3. Resolve Asisten by stambuk
+        let astId = null;
+        if (assistantStambuk) {
+          const ast = await prisma.asisten.findFirst({
+            where: { stambuk: String(assistantStambuk) }
+          });
+          if (ast) {
+            astId = ast.id;
+          } else {
+            skipCount++;
+            errors.push(`Asisten dengan stambuk ${assistantStambuk} tidak ditemukan.`);
+            continue;
+          }
+        }
+
+        // 4. Resolve Dosen by NID
+        let dosId = null;
+        if (lecturerNid) {
+          const dos = await prisma.dosen.findUnique({
+            where: { nid: String(lecturerNid) }
+          });
+          if (dos) {
+            dosId = dos.id;
+          } else {
+            skipCount++;
+            errors.push(`Dosen dengan NID ${lecturerNid} tidak ditemukan.`);
+            continue;
+          }
+        }
+
+        // 5. Resolve Kelas by namaKelas, mataKuliahId, and semester
+        let kId = null;
+        const targetKelas = await prisma.kelas.findFirst({
+          where: {
+            namaKelas: className,
+            mataKuliahId: mk.id,
+            semester: finalSemester
+          }
+        });
+        if (targetKelas) {
+          kId = targetKelas.id;
+          // auto update dosen if provided
+          if (dosId && targetKelas.dosenId !== dosId) {
+            await prisma.kelas.update({
+              where: { id: targetKelas.id },
+              data: { dosenId: dosId }
+            });
+          }
+        } else {
+          // If class doesn't exist, create it dynamically
+          if (!dosId) {
+            skipCount++;
+            errors.push(`Kelas ${className} untuk ${courseCode} belum terdaftar, dan NID Dosen tidak disediakan untuk membuatnya.`);
+            continue;
+          }
+          const newKelas = await prisma.kelas.create({
+            data: {
+              namaKelas: className,
+              mataKuliahId: mk.id,
+              dosenId: dosId,
+              semester: finalSemester
+            }
+          });
+          kId = newKelas.id;
+        }
+
+        // ── 6. VALIDASI BENTROK KELAS ──────────────────────────────
+        const classConflict = await prisma.jadwalPraktikum.findFirst({
+          where: {
+            OR: [
+              { kelasId: kId },
+              { kelas: className }
+            ],
+            hari: resolvedDay,
+            semester: finalSemester,
+            jamMulai: { lt: jamSelesai },
+            jamSelesai: { gt: jamMulai }
+          }
+        });
+        if (classConflict) {
+          skipCount++;
+          errors.push(`Bentrok Kelas: Kelas ${className} sudah dijadwalkan pada hari ${resolvedDay} jam ${jamMulai}-${jamSelesai}.`);
+          continue;
+        }
+
+        // ── 7. VALIDASI BENTROK RUANGAN ────────────────────────────
+        const roomConflict = await prisma.jadwalPraktikum.findFirst({
+          where: {
+            ruanganId: room.id,
+            hari: resolvedDay,
+            semester: finalSemester,
+            jamMulai: { lt: jamSelesai },
+            jamSelesai: { gt: jamMulai }
+          }
+        });
+        if (roomConflict) {
+          skipCount++;
+          errors.push(`Bentrok Ruangan: Ruangan ${roomCode} sedang digunakan pada hari ${resolvedDay} jam ${jamMulai}-${jamSelesai}.`);
+          continue;
+        }
+
+        // ── 8. VALIDASI BENTROK ASISTEN ────────────────────────────
+        if (astId) {
+          const asistenConflict = await prisma.jadwalPraktikum.findFirst({
+            where: {
+              asisenId: astId,
+              hari: resolvedDay,
+              semester: finalSemester,
+              jamMulai: { lt: jamSelesai },
+              jamSelesai: { gt: jamMulai }
+            }
+          });
+          if (asistenConflict) {
+            skipCount++;
+            errors.push(`Bentrok Asisten: Asisten ${assistantStambuk} sedang mendampingi praktikum lain pada hari ${resolvedDay} jam ${jamMulai}-${jamSelesai}.`);
+            continue;
+          }
+        }
+
+        // ── 9. VALIDASI BENTROK DOSEN ──────────────────────────────
+        if (dosId) {
+          const dosenConflict = await prisma.jadwalPraktikum.findFirst({
+            where: {
+              kelasRef: {
+                dosenId: dosId
+              },
+              hari: resolvedDay,
+              semester: finalSemester,
+              jamMulai: { lt: jamSelesai },
+              jamSelesai: { gt: jamMulai }
+            }
+          });
+          if (dosenConflict) {
+            skipCount++;
+            errors.push(`Bentrok Dosen: Dosen ${lecturerNid} sudah memiliki jadwal mengajar pada hari ${resolvedDay} jam ${jamMulai}-${jamSelesai}.`);
+            continue;
+          }
+        }
+
+        // Create schedule
+        await prisma.jadwalPraktikum.create({
+          data: {
+            mataKuliahId: mk.id,
+            asisenId: astId,
+            ruanganId: room.id,
+            dosenId: dosId,
+            hari: resolvedDay,
+            jamMulai,
+            jamSelesai,
+            semester: finalSemester,
+            kelas: className,
+            kelasId: kId
+          }
+        });
+        successCount++;
+      } catch (err) {
+        skipCount++;
+        errors.push(`Error baris: ${err.message}`);
+      }
+    }
+
+    let message = `Impor massal selesai. ${successCount} jadwal berhasil ditambahkan, ${skipCount} dilewati.`;
+    if (errors.length > 0) {
+      message += `\nDetail error:\n${errors.slice(0, 10).join('\n')}`;
+      if (errors.length > 10) message += `\n...dan ${errors.length - 10} error lainnya.`;
+    }
+    res.json({ message });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal melakukan impor massal jadwal.', error: error.message });
+  }
+});
+
+// POST verifikasi jadwal semester & generate sesi absensi
+router.post('/jadwal/verify-semester', async (req, res) => {
+  try {
+    const { tanggalMulai, tanggalSelesai, semester } = req.body;
+    if (!tanggalMulai || !tanggalSelesai) {
+      return res.status(400).json({ message: 'Tanggal mulai dan tanggal selesai wajib diisi.' });
+    }
+
+    const start = new Date(tanggalMulai);
+    const end = new Date(tanggalSelesai);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ message: 'Format tanggal tidak valid.' });
+    }
+
+    if (start > end) {
+      return res.status(400).json({ message: 'Tanggal mulai tidak boleh melebihi tanggal selesai.' });
+    }
+
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays > 180) {
+      return res.status(400).json({ message: 'Rentang tanggal tidak boleh melebihi 6 bulan (180 hari).' });
+    }
+
+
+    const finalSemester = semester || '2024/2025 Genap';
+
+    // Ambil semua jadwal aktif untuk semester ini
+    const jadwalList = await prisma.jadwalPraktikum.findMany({
+      where: {
+        aktif: true,
+        semester: finalSemester
+      }
+    });
+
+    const dayIndoToNum = {
+      'Senin': 1,
+      'Selasa': 2,
+      'Rabu': 3,
+      'Kamis': 4,
+      'Jumat': 5,
+      'Sabtu': 6
+    };
+
+    let totalSesiCreated = 0;
+
+    // Loop setiap jadwal
+    for (const j of jadwalList) {
+      const targetDayNum = dayIndoToNum[j.hari];
+      if (targetDayNum === undefined) continue;
+
+      let current = new Date(start);
+      let pertemuan = 1;
+
+      // Hapus sesi praktikum lama untuk jadwal ini untuk menghindari duplikat
+      // Cascade akan menghapus absensi & nilai terkait sesi tersebut jika ada
+      await prisma.sesiPraktikum.deleteMany({
+        where: { jadwalId: j.id }
+      });
+
+      // Cari semua tanggal yang harinya cocok antara start dan end
+      while (current <= end) {
+        if (current.getDay() === targetDayNum) {
+          // Buat SesiPraktikum
+          await prisma.sesiPraktikum.create({
+            data: {
+              jadwalId: j.id,
+              tanggal: new Date(current),
+              pertemuanKe: pertemuan,
+              topik: `Pertemuan ke-${pertemuan}`
+            }
+          });
+          pertemuan++;
+          totalSesiCreated++;
+        }
+        current.setDate(current.getDate() + 1);
+      }
+    }
+
+    res.json({
+      message: `Verifikasi jadwal semester sukses. Terbentuk ${totalSesiCreated} sesi praktikum untuk ${jadwalList.length} jadwal aktif.`
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal melakukan verifikasi semester.', error: error.message });
   }
 });
 

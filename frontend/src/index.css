@@ -1071,8 +1071,8 @@ tbody td { padding: var(--space-3) var(--space-4); color: var(--body); font-size
 
 /* Force dark theme option background inside select dropdowns */
 .theme-admin .form-select option {
-  background-color: #0d0d0d !important;
-  color: #ffffff !important;
+  background-color: #0d0d0d;
+  color: #ffffff;
 }
 
 /* Force modal footer buttons to align side-by-side horizontally (no wrapping) */
