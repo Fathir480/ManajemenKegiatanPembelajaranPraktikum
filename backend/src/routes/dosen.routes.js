@@ -69,34 +69,55 @@ router.get('/matkul/:mataKuliahId/nilai/:komponenId', async (req, res) => {
     // Cari seluruh jadwal praktikum untuk mata kuliah ini
     const jadwals = await prisma.jadwalPraktikum.findMany({
       where: { mataKuliahId },
-      select: { id: true },
-    });
-
-    const jadwalIds = jadwals.map(j => j.id);
-
-    // Cari semua peserta di jadwal-jadwal tersebut
-    const peserta = await prisma.pesertaJadwal.findMany({
-      where: { jadwalId: { in: jadwalIds } },
       include: {
-        mahasiswa: {
+        kelasRef: {
           include: {
-            user: { select: { nama: true, email: true } },
-            nilai: {
-              where: { komponenId },
+            pesertaKelas: {
+              include: {
+                mahasiswa: {
+                  include: {
+                    user: { select: { nama: true, email: true } },
+                    nilai: {
+                      where: { komponenId }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        pesertaJadwal: {
+          include: {
+            mahasiswa: {
+              include: {
+                user: { select: { nama: true, email: true } },
+                nilai: {
+                  where: { komponenId },
+                },
+              },
             },
           },
         },
-      },
+      }
     });
 
+    let rawPeserta = [];
+    for (const j of jadwals) {
+      if (j.kelasId && j.kelasRef) {
+        rawPeserta = rawPeserta.concat(j.kelasRef.pesertaKelas.map(pk => pk.mahasiswa));
+      } else {
+        rawPeserta = rawPeserta.concat(j.pesertaJadwal.map(pj => pj.mahasiswa));
+      }
+    }
+
     // Gabungkan data mahasiswa dengan nilai komponen
-    const result = peserta.map(p => {
-      const nilaiRecord = p.mahasiswa.nilai[0] || null;
+    const result = rawPeserta.map(m => {
+      const nilaiRecord = m.nilai?.[0] || null;
       return {
-        mahasiswaId: p.mahasiswaId,
-        stambuk: p.mahasiswa.stambuk,
-        nama: p.mahasiswa.user.nama,
-        email: p.mahasiswa.user.email,
+        mahasiswaId: m.id,
+        stambuk: m.stambuk,
+        nama: m.user.nama,
+        email: m.user.email,
         nilai: nilaiRecord ? nilaiRecord.nilai : 0,
         catatan: nilaiRecord ? nilaiRecord.catatan : '',
       };

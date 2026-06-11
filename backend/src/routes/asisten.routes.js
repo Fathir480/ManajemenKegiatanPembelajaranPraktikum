@@ -282,6 +282,22 @@ router.get('/jadwal/:jadwalId/nilai/:komponenId', async (req, res) => {
     const jadwal = await prisma.jadwalPraktikum.findUnique({
       where: { id: jadwalId },
       include: {
+        kelasRef: {
+          include: {
+            pesertaKelas: {
+              include: {
+                mahasiswa: {
+                  include: {
+                    user: { select: { nama: true, email: true } },
+                    nilai: {
+                      where: { komponenId }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         pesertaJadwal: {
           include: {
             mahasiswa: {
@@ -299,13 +315,20 @@ router.get('/jadwal/:jadwalId/nilai/:komponenId', async (req, res) => {
     
     if (!jadwal) return res.status(404).json({ message: 'Jadwal tidak ditemukan.' });
     
-    const peserta = jadwal.pesertaJadwal.map(p => {
-      const nilaiRecord = p.mahasiswa.nilai[0] || null;
+    let rawPeserta = [];
+    if (jadwal.kelasId && jadwal.kelasRef) {
+      rawPeserta = jadwal.kelasRef.pesertaKelas.map(pk => pk.mahasiswa);
+    } else {
+      rawPeserta = jadwal.pesertaJadwal.map(p => p.mahasiswa);
+    }
+    
+    const peserta = rawPeserta.map(m => {
+      const nilaiRecord = m.nilai?.[0] || null;
       return {
-        mahasiswaId: p.mahasiswaId,
-        stambuk: p.mahasiswa.stambuk,
-        nama: p.mahasiswa.user.nama,
-        email: p.mahasiswa.user.email,
+        mahasiswaId: m.id,
+        stambuk: m.stambuk,
+        nama: m.user.nama,
+        email: m.user.email,
         nilai: nilaiRecord ? nilaiRecord.nilai : 0,
         catatan: nilaiRecord ? nilaiRecord.catatan : '',
       };

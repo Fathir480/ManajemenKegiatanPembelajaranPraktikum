@@ -1134,6 +1134,12 @@ router.post('/jadwal/verify-semester', async (req, res) => {
       }
     });
 
+    // Update semua jadwal aktif agar semester-nya sesuai dengan semester yang diverifikasi
+    await prisma.jadwalPraktikum.updateMany({
+      where: { aktif: true },
+      data: { semester: finalSemester }
+    });
+
     // Ambil semua jadwal aktif untuk semester ini
     const jadwalList = await prisma.jadwalPraktikum.findMany({
       where: {
