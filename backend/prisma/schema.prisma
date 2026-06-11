@@ -154,6 +154,8 @@ model JadwalPraktikum {
   aktif          Boolean @default(true)
   kelas          String? @db.VarChar(10)
   kelasId        Int?    @db.UnsignedInt @map("kelas_id")
+  semester       String   @db.VarChar(50)
+  kapasitasGrup  Int      @default(30) @map("kapasitas_grup") @db.UnsignedSmallInt
   createdAt      DateTime @default(now()) @map("created_at")
 
   mataKuliah        MataKuliah          @relation(fields: [mataKuliahId], references: [id])
@@ -405,3 +407,15 @@ model PesertaKelas {
   @@unique([kelasId, mahasiswaId])
   @@map("peserta_kelas")
 }
+
+model SemesterConfig {
+  id             Int      @id @default(autoincrement()) @db.UnsignedInt
+  semester       String   @unique @db.VarChar(50)
+  tanggalMulai   DateTime @db.Date @map("tanggal_mulai")
+  tanggalSelesai DateTime @db.Date @map("tanggal_selesai")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("semester_config")
+}
+

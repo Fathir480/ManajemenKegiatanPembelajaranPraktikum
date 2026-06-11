@@ -39,6 +39,7 @@ export default function KelolaJadwal() {
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
   const [verifyDates, setVerifyDates] = useState({ tanggalMulai: '', tanggalSelesai: '', semester: '2024/2025 Genap' });
+  const [semesterConfig, setSemesterConfig] = useState(null);
   const [selectedDayTab, setSelectedDayTab] = useState('Senin');
   const [editingId, setEditingId] = useState(null);
 
@@ -79,8 +80,25 @@ export default function KelolaJadwal() {
     }
   };
 
+  const fetchSemesterConfig = async (semStr = '2024/2025 Genap') => {
+    try {
+      const res = await api.get(`/admin/jadwal/semester-config/${encodeURIComponent(semStr)}`);
+      setSemesterConfig(res || null);
+      if (res && res.tanggalMulai && res.tanggalSelesai) {
+        setVerifyDates({
+          tanggalMulai: res.tanggalMulai.split('T')[0],
+          tanggalSelesai: res.tanggalSelesai.split('T')[0],
+          semester: res.semester
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch semester config:', err);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchSemesterConfig('2024/2025 Genap');
   }, []);
 
   const handleOpenAddModal = (initialData = {}) => {
@@ -307,9 +325,30 @@ export default function KelolaJadwal() {
       const res = await api.post('/admin/jadwal/verify-semester', verifyDates);
       setSuccess(res.message);
       setIsVerifyModalOpen(false);
+      fetchSemesterConfig(verifyDates.semester);
       fetchData();
     } catch (err) {
       setError(err.message || 'Failed to verify semester');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelSemester = async () => {
+    if (!window.confirm('Are you sure you want to cancel the verified semester schedule? This will delete all generated weekly sessions and any recorded student attendance.')) {
+      return;
+    }
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      const res = await api.delete(`/admin/jadwal/semester-config/${encodeURIComponent(semesterConfig.semester)}`);
+      setSuccess(res.message);
+      setSemesterConfig(null);
+      setVerifyDates({ tanggalMulai: '', tanggalSelesai: '', semester: '2024/2025 Genap' });
+      fetchData();
+    } catch (err) {
+      setError(err.message || 'Failed to cancel semester');
     } finally {
       setLoading(false);
     }
@@ -338,7 +377,15 @@ export default function KelolaJadwal() {
           <button 
             className="btn btn-outline" 
             onClick={() => {
-              setVerifyDates({ tanggalMulai: '', tanggalSelesai: '', semester: '2024/2025 Genap' });
+              if (semesterConfig) {
+                setVerifyDates({
+                  tanggalMulai: semesterConfig.tanggalMulai ? semesterConfig.tanggalMulai.split('T')[0] : '',
+                  tanggalSelesai: semesterConfig.tanggalSelesai ? semesterConfig.tanggalSelesai.split('T')[0] : '',
+                  semester: semesterConfig.semester
+                });
+              } else {
+                setVerifyDates({ tanggalMulai: '', tanggalSelesai: '', semester: '2024/2025 Genap' });
+              }
               setIsVerifyModalOpen(true);
             }}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
@@ -358,6 +405,28 @@ export default function KelolaJadwal() {
           </button>
         </div>
       </div>
+
+      {semesterConfig && (
+        <div className="alert alert-info mb-6" style={{ background: 'rgba(0, 150, 255, 0.08)', border: '1px solid rgba(0, 150, 255, 0.2)', padding: '16px 20px', borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <strong style={{ color: 'var(--ink)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+              Semester is Active & Running
+            </strong>
+            <div className="text-muted text-mono" style={{ fontSize: '11px', marginTop: '4px' }}>
+              Semester: {semesterConfig.semester} | Date Range: {new Date(semesterConfig.tanggalMulai).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })} - {new Date(semesterConfig.tanggalSelesai).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </div>
+          </div>
+          <button 
+            type="button" 
+            className="btn btn-danger btn-sm" 
+            onClick={handleCancelSemester}
+            style={{ padding: '6px 12px', fontSize: '11px', letterSpacing: 0, textTransform: 'none', height: 'auto' }}
+          >
+            Cancel Semester
+          </button>
+        </div>
+      )}
 
       {success && <div className="alert alert-success mb-6">{success}</div>}
       {error && <div className="alert alert-error mb-6" style={{ whiteSpace: 'pre-line' }}>{error}</div>}

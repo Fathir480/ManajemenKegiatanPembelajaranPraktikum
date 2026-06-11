@@ -1082,8 +1082,21 @@ router.post('/jadwal/verify-semester', async (req, res) => {
       return res.status(400).json({ message: 'Rentang tanggal tidak boleh melebihi 6 bulan (180 hari).' });
     }
 
-
     const finalSemester = semester || '2024/2025 Genap';
+
+    // Simpan/Upsert konfigurasi semester ke database
+    await prisma.semesterConfig.upsert({
+      where: { semester: finalSemester },
+      update: {
+        tanggalMulai: start,
+        tanggalSelesai: end
+      },
+      create: {
+        semester: finalSemester,
+        tanggalMulai: start,
+        tanggalSelesai: end
+      }
+    });
 
     // Ambil semua jadwal aktif untuk semester ini
     const jadwalList = await prisma.jadwalPraktikum.findMany({
@@ -1142,6 +1155,48 @@ router.post('/jadwal/verify-semester', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Gagal melakukan verifikasi semester.', error: error.message });
+  }
+});
+
+// GET konfigurasi semester
+router.get('/jadwal/semester-config/:semester', async (req, res) => {
+  try {
+    const { semester } = req.params;
+    const config = await prisma.semesterConfig.findUnique({
+      where: { semester }
+    });
+    res.json(config);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil konfigurasi semester.', error: error.message });
+  }
+});
+
+// DELETE batalkan verifikasi semester
+router.delete('/jadwal/semester-config/:semester', async (req, res) => {
+  try {
+    const { semester } = req.params;
+
+    // 1. Hapus SemesterConfig
+    await prisma.semesterConfig.deleteMany({
+      where: { semester }
+    });
+
+    // 2. Ambil semua jadwal untuk semester ini
+    const jadwalList = await prisma.jadwalPraktikum.findMany({
+      where: { semester }
+    });
+    const jadwalIds = jadwalList.map(j => j.id);
+
+    // 3. Hapus semua sesi praktikum terkait jadwal-jadwal tersebut
+    if (jadwalIds.length > 0) {
+      await prisma.sesiPraktikum.deleteMany({
+        where: { jadwalId: { in: jadwalIds } }
+      });
+    }
+
+    res.json({ message: `Semester ${semester} berhasil dibatalkan. Seluruh sesi praktikum telah dihapus.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal membatalkan semester.', error: error.message });
   }
 });
 
@@ -1561,6 +1616,134 @@ router.delete('/kelas/:id/peserta/:mahasiswaId', async (req, res) => {
     res.json({ message: 'Peserta berhasil dihapus.' });
   } catch (error) {
     res.status(500).json({ message: 'Gagal menghapus peserta kelas.', error: error.message });
+  }
+});
+
+// GET detail absensi kelas (list mahasiswa & sesi & status absensi)
+router.get('/absensi/kelas/:kelasId', async (req, res) => {
+  try {
+    const kelasId = parseInt(req.params.kelasId);
+    
+    // Ambil detail kelas
+    const kelas = await prisma.kelas.findUnique({
+      where: { id: kelasId },
+      include: { mataKuliah: true }
+    });
+    if (!kelas) {
+      return res.status(404).json({ message: 'Kelas tidak ditemukan.' });
+    }
+
+    // Ambil semua mahasiswa di kelas ini
+    const peserta = await prisma.pesertaKelas.findMany({
+      where: { kelasId },
+      include: {
+        mahasiswa: {
+          include: { user: { select: { nama: true } } }
+        }
+      },
+      orderBy: { mahasiswa: { stambuk: 'asc' } }
+    });
+
+    // Ambil semua sesi praktikum yang berkaitan dengan kelas ini
+    const sesi = await prisma.sesiPraktikum.findMany({
+      where: {
+        jadwal: { kelasId }
+      },
+      orderBy: [
+        { pertemuanKe: 'asc' },
+        { tanggal: 'asc' }
+      ]
+    });
+
+    const sesiIds = sesi.map(s => s.id);
+
+    // Ambil data absensi untuk sesi-sesi tersebut
+    let absensi = [];
+    if (sesiIds.length > 0) {
+      absensi = await prisma.absensi.findMany({
+        where: {
+          sesiId: { in: sesiIds }
+        }
+      });
+    }
+
+    res.json({
+      kelas,
+      students: peserta.map(p => ({
+        id: p.mahasiswa.id,
+        nama: p.mahasiswa.user.nama,
+        stambuk: p.mahasiswa.stambuk
+      })),
+      sessions: sesi.map(s => ({
+        id: s.id,
+        tanggal: s.tanggal,
+        pertemuanKe: s.pertemuanKe,
+        topik: s.topik
+      })),
+      attendance: absensi
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil data absensi kelas.', error: error.message });
+  }
+});
+
+// PUT ubah tanggal sesi absensi
+router.put('/absensi/sesi/:sesiId', async (req, res) => {
+  try {
+    const sesiId = parseInt(req.params.sesiId);
+    const { tanggal } = req.body;
+    if (!tanggal) {
+      return res.status(400).json({ message: 'Tanggal wajib diisi.' });
+    }
+
+    const start = new Date(tanggal);
+    if (isNaN(start.getTime())) {
+      return res.status(400).json({ message: 'Format tanggal tidak valid.' });
+    }
+
+    const updatedSesi = await prisma.sesiPraktikum.update({
+      where: { id: sesiId },
+      data: { tanggal: start }
+    });
+
+    res.json({ message: 'Tanggal absensi berhasil diubah.', updatedSesi });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengubah tanggal absensi.', error: error.message });
+  }
+});
+
+// PUT perbarui status absensi mahasiswa manual
+router.put('/absensi/update', async (req, res) => {
+  try {
+    const { sesiId, mahasiswaId, status } = req.body;
+    if (!sesiId || !mahasiswaId || !status) {
+      return res.status(400).json({ message: 'Sesi, mahasiswa, dan status wajib diisi.' });
+    }
+
+    const validStatuses = ['hadir', 'izin', 'sakit', 'alpa'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Status absensi tidak valid.' });
+    }
+
+    const absensi = await prisma.absensi.upsert({
+      where: {
+        sesiId_mahasiswaId: {
+          sesiId: parseInt(sesiId),
+          mahasiswaId: parseInt(mahasiswaId)
+        }
+      },
+      update: { status },
+      create: {
+        sesiId: parseInt(sesiId),
+        mahasiswaId: parseInt(mahasiswaId),
+        status,
+        metode: 'manual'
+      }
+    });
+
+    res.json({ message: 'Absensi berhasil diperbarui.', absensi });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal memperbarui absensi.', error: error.message });
   }
 });
 

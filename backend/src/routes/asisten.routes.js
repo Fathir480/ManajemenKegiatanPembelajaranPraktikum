@@ -25,11 +25,16 @@ router.get('/jadwal', async (req, res) => {
   }
 });
 
-// GET semua sesi praktikum yang dibuka asisten ini
+// GET semua sesi praktikum yang berkaitan dengan jadwal asisten ini
 router.get('/sesi', async (req, res) => {
   try {
+    const asisten = await prisma.asisten.findUnique({ where: { userId: req.user.id } });
+    if (!asisten) return res.status(404).json({ message: 'Data asisten tidak ditemukan.' });
+
     const sesi = await prisma.sesiPraktikum.findMany({
-      where: { dibukaoOleh: req.user.id },
+      where: {
+        jadwal: { asisenId: asisten.id }
+      },
       include: {
         jadwal: {
           include: {
@@ -38,7 +43,10 @@ router.get('/sesi', async (req, res) => {
           },
         },
       },
-      orderBy: { tanggal: 'desc' },
+      orderBy: [
+        { pertemuanKe: 'asc' },
+        { tanggal: 'asc' }
+      ],
     });
     res.json(sesi);
   } catch (error) {
@@ -46,7 +54,25 @@ router.get('/sesi', async (req, res) => {
   }
 });
 
-// POST buka sesi praktikum
+// PUT buka sesi praktikum yang sudah ada (tergenerasi)
+router.put('/sesi/:id/buka', async (req, res) => {
+  try {
+    const sesi = await prisma.sesiPraktikum.update({
+      where: { id: parseInt(req.params.id) },
+      data: {
+        dibukaoOleh: req.user.id,
+        dibukaPada: new Date(),
+        ditutupPada: null, // Reset closed timestamp
+        topik: req.body.topik || undefined
+      },
+    });
+    res.json({ message: 'Sesi praktikum berhasil dibuka.', data: sesi });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal membuka sesi.', error: error.message });
+  }
+});
+
+// POST buka sesi praktikum baru (fallback/manual)
 router.post('/sesi', async (req, res) => {
   try {
     const { jadwalId, tanggal, pertemuanKe, topik } = req.body;

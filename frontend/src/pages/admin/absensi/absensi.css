@@ -1,0 +1,129 @@
+/* CSS for Admin Attendance Page Matrix */
+
+.absensi-matrix-wrapper {
+  margin-top: var(--space-4);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--hairline-strong);
+  background: var(--surface);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+.absensi-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.absensi-table th {
+  padding: var(--space-4) var(--space-3);
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--hairline-strong);
+  border-right: 1px solid var(--hairline);
+  background: var(--surface-soft);
+  color: var(--ink);
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.absensi-table th:first-child {
+  border-right: 2px solid var(--hairline-strong) !important;
+}
+
+.absensi-table td {
+  border-bottom: 1px solid var(--hairline);
+  border-right: 1px solid var(--hairline);
+  padding: var(--space-3);
+  background-color: var(--surface);
+  transition: background-color 0.2s ease;
+}
+
+.absensi-table tr:hover td {
+  background-color: var(--canvas) !important;
+}
+
+.absensi-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Sticky Column shadow / separator */
+.absensi-table td:first-child {
+  box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.2);
+}
+
+.absensi-table th:first-child {
+  box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.2);
+}
+
+/* Styled inline selects for attendance status */
+.status-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding: 4px 12px !important;
+  text-align: center;
+  text-align-last: center;
+  border-radius: 0px !important; /* theme-admin border radius */
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  width: 100px;
+  height: 28px;
+  border: 1px solid transparent !important;
+  transition: all 0.15s ease;
+}
+
+.status-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+/* Hadir (Green) */
+.status-select.status-hadir {
+  background-color: rgba(46, 213, 115, 0.08) !important;
+  color: #2ed573 !important;
+  border-color: rgba(46, 213, 115, 0.15) !important;
+}
+.status-select.status-hadir:hover {
+  background-color: rgba(46, 213, 115, 0.15) !important;
+  border-color: rgba(46, 213, 115, 0.3) !important;
+}
+
+/* Izin (Orange/Yellow) */
+.status-select.status-izin {
+  background-color: rgba(255, 165, 0, 0.08) !important;
+  color: #ffa500 !important;
+  border-color: rgba(255, 165, 0, 0.15) !important;
+}
+.status-select.status-izin:hover {
+  background-color: rgba(255, 165, 0, 0.15) !important;
+  border-color: rgba(255, 165, 0, 0.3) !important;
+}
+
+/* Sakit (Blue) */
+.status-select.status-sakit {
+  background-color: rgba(30, 144, 255, 0.08) !important;
+  color: #1e90ff !important;
+  border-color: rgba(30, 144, 255, 0.15) !important;
+}
+.status-select.status-sakit:hover {
+  background-color: rgba(30, 144, 255, 0.15) !important;
+  border-color: rgba(30, 144, 255, 0.3) !important;
+}
+
+/* Alpa (Red) */
+.status-select.status-alpa {
+  background-color: rgba(255, 71, 87, 0.08) !important;
+  color: #ff4757 !important;
+  border-color: rgba(255, 71, 87, 0.15) !important;
+}
+.status-select.status-alpa:hover {
+  background-color: rgba(255, 71, 87, 0.15) !important;
+  border-color: rgba(255, 71, 87, 0.3) !important;
+}

@@ -16,6 +16,7 @@ import KelolaMatkul from './pages/admin/matkul';
 import KelolaJadwal from './pages/admin/jadwal';
 import KelolaKelas from './pages/admin/kelas';
 import KelolaRuangan from './pages/admin/ruangan';
+import AdminAbsensi from './pages/admin/absensi';
 import ValidasiAjuan from './pages/admin/ajuan';
 
 // Asisten Subpages
@@ -96,6 +97,9 @@ export default function App() {
         } />
         <Route path="/admin/ruangan" element={
           <PrivateRoute allowedRoles={['admin']}><KelolaRuangan /></PrivateRoute>
+        } />
+        <Route path="/admin/absensi" element={
+          <PrivateRoute allowedRoles={['admin']}><AdminAbsensi /></PrivateRoute>
         } />
         <Route path="/admin/ajuan" element={
           <PrivateRoute allowedRoles={['admin']}><ValidasiAjuan /></PrivateRoute>

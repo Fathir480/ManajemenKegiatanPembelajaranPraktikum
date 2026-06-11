@@ -11,6 +11,7 @@ const navItems = {
     { to: '/admin/kelas', label: 'Classes' },
     { to: '/admin/ruangan', label: 'Labs' },
     { to: '/admin/jadwal', label: 'Schedules' },
+    { to: '/admin/absensi', label: 'Attendance' },
     { to: '/admin/ajuan', label: 'Requests' },
   ],
   asisten: [

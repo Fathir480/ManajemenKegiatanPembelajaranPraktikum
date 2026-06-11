@@ -7,8 +7,27 @@ async function main() {
   console.log('🌱 Mulai seeding database...');
 
   // ── ROLES ──────────────────────────────────────────────
-  // Sudah dibuat via db push dari schema enum, tapi kita pastikan ada
-  // (Prisma tidak auto-seed roles karena pakai enum, bukan tabel terpisah)
+  await prisma.role.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1, namaRole: 'admin' },
+  });
+  await prisma.role.upsert({
+    where: { id: 2 },
+    update: {},
+    create: { id: 2, namaRole: 'dosen' },
+  });
+  await prisma.role.upsert({
+    where: { id: 3 },
+    update: {},
+    create: { id: 3, namaRole: 'asisten' },
+  });
+  await prisma.role.upsert({
+    where: { id: 4 },
+    update: {},
+    create: { id: 4, namaRole: 'praktikan' },
+  });
+  console.log('✅ Roles created');
 
   // ── HASH PASSWORD ──────────────────────────────────────
   const hash = (plain) => bcrypt.hash(plain, 10);

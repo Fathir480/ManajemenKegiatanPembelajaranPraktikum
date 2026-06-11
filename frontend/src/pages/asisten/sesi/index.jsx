@@ -21,14 +21,10 @@ export default function AsistenSesi() {
   const [success, setSuccess] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Form State
-  const [formData, setFormData] = useState({
-    jadwalId: '',
-    tanggal: new Date().toISOString().split('T')[0],
-    pertemuanKe: 1,
-    topik: ''
-  });
-
+  // Selected pre-generated session to open
+  const [selectedSesiId, setSelectedSesiId] = useState(null);
+  const [topik, setTopik] = useState('');
+ 
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -44,42 +40,29 @@ export default function AsistenSesi() {
       setLoading(false);
     }
   };
-
+ 
   useEffect(() => {
     fetchData();
   }, []);
-
-  const handleOpenAddModal = () => {
-    if (jadwal.length === 0) {
-      setError('You are not assigned to any schedule yet');
-      return;
-    }
-    setFormData({
-      jadwalId: jadwal[0]?.id || '',
-      tanggal: new Date().toISOString().split('T')[0],
-      pertemuanKe: 1,
-      topik: ''
-    });
+ 
+  const handleOpenSesiClick = (s) => {
+    setSelectedSesiId(s.id);
+    setTopik(s.topik || `Pertemuan ke-${s.pertemuanKe}`);
     setIsModalOpen(true);
   };
-
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
+ 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     
     try {
-      const data = await api.post('/asisten/sesi', formData);
+      const data = await api.put(`/asisten/sesi/${selectedSesiId}/buka`, { topik });
       setSuccess('Practicum session opened successfully');
       setIsModalOpen(false);
       fetchData();
       
-      // Auto redirect to absensi for the new session
+      // Auto redirect to absensi for the session
       setTimeout(() => {
         window.location.href = `/asisten/absensi?sesi=${data.data.id}`;
       }, 1000);
@@ -87,7 +70,7 @@ export default function AsistenSesi() {
       setError(err.message || 'Failed to open session');
     }
   };
-
+ 
   const handleCloseSesi = async (id) => {
     if (!window.confirm('Are you sure you want to close this session? Once closed, attendance registration ends.')) return;
     
@@ -109,9 +92,6 @@ export default function AsistenSesi() {
           <h1 style={{ fontSize: '28px' }}>Practicum Session Meetings</h1>
           <p className="page-subtitle">Manage lab sessions, attendance scanner, and student materials</p>
         </div>
-        <button className="btn btn-primary" onClick={handleOpenAddModal}>
-          Start New Session
-        </button>
       </div>
 
       {success && <div className="alert alert-success mb-6">{success}</div>}
@@ -124,23 +104,34 @@ export default function AsistenSesi() {
         </div>
       ) : sesi.length === 0 ? (
         <div className="empty-state">
-          <p>No practicum sessions opened yet</p>
+          <p>No pre-generated sessions found. Please verify the semester schedule in the Admin panel first.</p>
         </div>
       ) : (
         <div className="sesi-grid">
           {sesi.map(s => {
-            const isActive = !s.ditutupPada;
+            const isNotStarted = !s.dibukaPada && !s.ditutupPada;
+            const isActive = s.dibukaPada && !s.ditutupPada;
+            const isClosed = !!s.ditutupPada;
             const tgl = new Date(s.tanggal).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+            
+            let cardBorder = '1px solid var(--hairline)';
+            if (isActive) cardBorder = '4px solid var(--success)';
+            else if (isNotStarted) cardBorder = '2px solid rgba(255, 255, 255, 0.1)';
+
             return (
-              <div className="sesi-card" key={s.id} style={{ borderLeft: isActive ? '4px solid var(--success)' : '1px solid var(--hairline)' }}>
+              <div className="sesi-card" key={s.id} style={{ borderLeft: cardBorder }}>
                 <div>
                   <div className="flex-between mb-4">
                     <span className="badge badge-status-active" style={{ fontSize: '11px' }}>
                       Session #{s.pertemuanKe}
                     </span>
-                    <span className={`badge ${isActive ? 'badge-status-active' : 'badge-status-inactive'}`}>
-                      {isActive ? 'Active / Open' : 'Completed / Closed'}
-                    </span>
+                    {isActive ? (
+                      <span className="badge badge-status-active">Active / Open</span>
+                    ) : isClosed ? (
+                      <span className="badge badge-status-inactive">Completed / Closed</span>
+                    ) : (
+                      <span className="badge" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--muted)' }}>Not Started</span>
+                    )}
                   </div>
                   
                   <h3 style={{ fontSize: '18px', marginBottom: '4px' }}>{s.jadwal?.mataKuliah?.nama}</h3>
@@ -154,13 +145,25 @@ export default function AsistenSesi() {
                 </div>
                 
                 <div className="flex gap-2" style={{ marginTop: '20px', borderTop: '1px solid var(--hairline)', paddingTop: '12px' }}>
-                  <a href={`/asisten/absensi?sesi=${s.id}`} className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
-                    {isActive ? 'Scanner' : 'View Attendance'}
-                  </a>
-                  {isActive && (
-                    <button className="btn btn-danger btn-sm" onClick={() => handleCloseSesi(s.id)}>
-                      Close
+                  {isNotStarted && (
+                    <button className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={() => handleOpenSesiClick(s)}>
+                      Start Session
                     </button>
+                  )}
+                  {isActive && (
+                    <>
+                      <a href={`/asisten/absensi?sesi=${s.id}`} className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
+                        Scanner
+                      </a>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleCloseSesi(s.id)}>
+                        Close
+                      </button>
+                    </>
+                  )}
+                  {isClosed && (
+                    <a href={`/asisten/absensi?sesi=${s.id}`} className="btn btn-outline btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
+                      View Attendance
+                    </a>
                   )}
                 </div>
               </div>
@@ -169,12 +172,12 @@ export default function AsistenSesi() {
         </div>
       )}
 
-      {/* modal add */}
+      {/* modal open/start session */}
       {isModalOpen && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: '500px' }}>
+          <div className="modal" style={{ maxWidth: '450px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Start New Session</h3>
+              <h3 className="modal-title">Open Practicum Session</h3>
               <button className="modal-close" onClick={() => setIsModalOpen(false)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -184,70 +187,29 @@ export default function AsistenSesi() {
             </div>
             
             <form onSubmit={handleFormSubmit} className="login-form">
-              <div className="form-group">
-                <label className="form-label">Select Your Class / Schedule</label>
-                <select 
-                  name="jadwalId" 
-                  className="form-select" 
-                  required
-                  value={formData.jadwalId} 
-                  onChange={handleFormChange}
-                >
-                  <option value="" disabled>-- Select Class --</option>
-                  {jadwal.map(j => (
-                    <option key={j.id} value={j.id}>
-                      {j.mataKuliah?.nama} ({dayMap[j.hari] || j.hari}, {j.jamMulai}-{j.jamSelesai})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid-2">
-                <div className="form-group">
-                  <label className="form-label">Date</label>
-                  <input 
-                    type="date" 
-                    name="tanggal" 
-                    className="form-input" 
-                    required 
-                    value={formData.tanggal} 
-                    onChange={handleFormChange} 
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Session Number</label>
-                  <input 
-                    type="number" 
-                    name="pertemuanKe" 
-                    className="form-input" 
-                    required 
-                    min="1" 
-                    max="16"
-                    value={formData.pertemuanKe} 
-                    onChange={handleFormChange} 
-                  />
-                </div>
+              <div style={{ fontSize: '13px', color: 'var(--body)', marginBottom: '16px', lineHeight: 1.5 }}>
+                Enter a topic to open the scanner for this session. The date of the session is locked based on your verified semester schedules.
               </div>
 
               <div className="form-group">
-                <label className="form-label">Topic</label>
+                <label className="form-label">Session Topic</label>
                 <input 
                   type="text" 
                   name="topik" 
                   className="form-input" 
                   required
                   placeholder="Example: Introduction to HTML & CSS"
-                  value={formData.topik} 
-                  onChange={handleFormChange} 
+                  value={topik} 
+                  onChange={(e) => setTopik(e.target.value)} 
                 />
               </div>
 
-              <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+              <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsModalOpen(false)}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Open Session
+                  Start Session & Open Scanner
                 </button>
               </div>
             </form>
