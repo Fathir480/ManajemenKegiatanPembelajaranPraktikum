@@ -77,6 +77,7 @@ model Dosen {
   materi          Materi[]
   kelas           Kelas[]
   jadwalPraktikum JadwalPraktikum[]
+  dosenMataKuliah DosenMataKuliah[]
 
   @@map("dosen")
 }
@@ -108,6 +109,7 @@ model MataKuliah {
   materi          Materi[]
   rekapNilai      RekapNilaiAkhir[]
   kelas           Kelas[]
+  dosenMataKuliah DosenMataKuliah[]
 
   @@map("mata_kuliah")
 }
@@ -416,5 +418,16 @@ model SemesterConfig {
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   @@map("semester_config")
+}
+
+model DosenMataKuliah {
+  dosenId      Int        @db.UnsignedInt @map("dosen_id")
+  mataKuliahId Int        @db.UnsignedInt @map("mata_kuliah_id")
+
+  dosen      Dosen      @relation(fields: [dosenId], references: [id], onDelete: Cascade)
+  mataKuliah MataKuliah @relation(fields: [mataKuliahId], references: [id], onDelete: Cascade)
+
+  @@id([dosenId, mataKuliahId])
+  @@map("dosen_mata_kuliah")
 }
 

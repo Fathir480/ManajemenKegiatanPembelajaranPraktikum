@@ -23,9 +23,11 @@ export default function KelolaDosen() {
     email: '',
     password: '',
     nid: '',
-    spesialisasi: '',
+    mataKuliahIds: [],
     aktif: true
   });
+  
+  const [mataKuliahList, setMataKuliahList] = useState([]);
 
   const fetchDosen = async () => {
     try {
@@ -39,8 +41,18 @@ export default function KelolaDosen() {
     }
   };
 
+  const fetchMataKuliah = async () => {
+    try {
+      const data = await api.get('/admin/matkul');
+      setMataKuliahList(data);
+    } catch (err) {
+      console.error('Failed to fetch courses:', err);
+    }
+  };
+
   useEffect(() => {
     fetchDosen();
+    fetchMataKuliah();
   }, []);
 
   const handleOpenAddModal = () => {
@@ -50,7 +62,7 @@ export default function KelolaDosen() {
       email: '',
       password: '',
       nid: '',
-      spesialisasi: '',
+      mataKuliahIds: [],
       aktif: true
     });
     setIsModalOpen(true);
@@ -64,7 +76,7 @@ export default function KelolaDosen() {
       email: d.user?.email || '',
       password: '', // Kosongkan saat edit
       nid: d.nid || '',
-      spesialisasi: d.spesialisasi || '',
+      mataKuliahIds: d.dosenMataKuliah?.map(dm => dm.mataKuliahId) || [],
       aktif: d.user?.aktif !== undefined ? d.user?.aktif : true
     });
     setIsModalOpen(true);
@@ -76,6 +88,15 @@ export default function KelolaDosen() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+  };
+
+  const handleCheckboxChange = (id) => {
+    setFormData(prev => {
+      const ids = prev.mataKuliahIds.includes(id)
+        ? prev.mataKuliahIds.filter(x => x !== id)
+        : [...prev.mataKuliahIds, id];
+      return { ...prev, mataKuliahIds: ids };
+    });
   };
 
   const handleFormSubmit = async (e) => {
@@ -114,10 +135,10 @@ export default function KelolaDosen() {
 
   // --- BULK IMPORT EXCEL LOGIC ---
   const handleDownloadTemplate = () => {
-    const headers = [['Name', 'NID', 'Specialization']];
+    const headers = [['Name', 'NID']];
     const mockData = [
-      ['Prof. Dr. Ir. H. Anwar', 'NID-002', 'Software Engineering'],
-      ['Siti Fatimah, S.T, M.T', 'NID-003', 'Artificial Intelligence']
+      ['Prof. Dr. Ir. H. Anwar', 'NID-002'],
+      ['Siti Fatimah, S.T, M.T', 'NID-003']
     ];
     const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...mockData]);
     const workbook = XLSX.utils.book_new();
@@ -152,8 +173,7 @@ export default function KelolaDosen() {
         const items = rawData.map(r => ({
           nama: r['Name'] || r['Nama'],
           email: r['Email'],
-          nid: String(r['NID'] || ''),
-          spesialisasi: r['Specialization'] || r['Spesialisasi'] || ''
+          nid: String(r['NID'] || '')
         }));
 
         const res = await api.post('/admin/dosen/bulk', { items });
@@ -172,7 +192,7 @@ export default function KelolaDosen() {
   const filteredDosen = dosen.filter(d => 
     d.user?.nama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     d.nid?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    d.spesialisasi?.toLowerCase().includes(searchTerm.toLowerCase())
+    d.dosenMataKuliah?.some(dm => dm.mataKuliah?.nama?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -180,7 +200,7 @@ export default function KelolaDosen() {
       <div className="page-header">
         <div className="page-header-left">
           <h1 style={{ fontSize: '28px' }}>Lecturer Management</h1>
-          <p className="page-subtitle">Manage Lecturer Identification Numbers (NID), subject specializations, and bulk data imports</p>
+          <p className="page-subtitle">Manage Lecturer Identification Numbers (NID), course assignments, and bulk data imports</p>
         </div>
         <div className="flex gap-3">
           <button className="btn btn-ghost" onClick={() => setIsBulkModalOpen(true)}>
@@ -202,7 +222,7 @@ export default function KelolaDosen() {
             <input 
               type="text" 
               className="form-input" 
-              placeholder="Search name, NID, specialization..." 
+              placeholder="Search name, NID, course..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -229,7 +249,7 @@ export default function KelolaDosen() {
                 <tr>
                   <th>Name</th>
                   <th>NID</th>
-                  <th>Specialization</th>
+                  <th>Taught Courses</th>
                   <th>Status</th>
                   <th style={{ width: '80px' }}></th>
                 </tr>
@@ -245,7 +265,19 @@ export default function KelolaDosen() {
                       </span>
                     </td>
                     <td className="text-mono">{d.nid}</td>
-                    <td>{d.spesialisasi || '-'}</td>
+                    <td>
+                      {d.dosenMataKuliah && d.dosenMataKuliah.length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {d.dosenMataKuliah.map(dm => (
+                            <span key={dm.mataKuliah.id} className="badge badge-status-active" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                              {dm.mataKuliah.nama}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted">-</span>
+                      )}
+                    </td>
                     <td>
                       <span className={`badge ${d.user?.aktif ? 'badge-hadir' : 'badge-alpa'}`}>
                         {d.user?.aktif ? 'Active' : 'Inactive'}
@@ -317,15 +349,42 @@ export default function KelolaDosen() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Specialization</label>
-                <input 
-                  type="text" 
-                  name="spesialisasi" 
-                  className="form-input" 
-                  placeholder="Example: Software Engineering, Data Science" 
-                  value={formData.spesialisasi} 
-                  onChange={handleFormChange} 
-                />
+                <label className="form-label" style={{ marginBottom: '10px' }}>Taught Courses (Mata Kuliah diampu)</label>
+                {mataKuliahList.length === 0 ? (
+                  <div className="text-muted" style={{ fontSize: '13px' }}>No courses available in database.</div>
+                ) : (
+                  <div className="courses-checkbox-grid" style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: '1fr', 
+                    gap: '10px', 
+                    maxHeight: '160px', 
+                    overflowY: 'auto',
+                    padding: '12px',
+                    border: '1px solid var(--hairline-strong)',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--card-bg-hover)'
+                  }}>
+                    {mataKuliahList.map(mk => (
+                      <label key={mk.id} style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '10px', 
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                        color: 'var(--body)'
+                      }}>
+                        <input 
+                          type="checkbox" 
+                          checked={formData.mataKuliahIds.includes(mk.id)}
+                          onChange={() => handleCheckboxChange(mk.id)}
+                          style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
+                        />
+                        <span>{mk.kode} - {mk.nama}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {modalMode === 'edit' && (

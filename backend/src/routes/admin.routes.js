@@ -201,7 +201,14 @@ router.post('/mahasiswa/bulk', async (req, res) => {
 router.get('/dosen', async (req, res) => {
   try {
     const dosen = await prisma.dosen.findMany({
-      include: { user: { select: { nama: true, email: true, aktif: true } } },
+      include: {
+        user: { select: { nama: true, email: true, aktif: true } },
+        dosenMataKuliah: {
+          include: {
+            mataKuliah: true
+          }
+        }
+      },
     });
     res.json(dosen);
   } catch (error) {
@@ -211,7 +218,7 @@ router.get('/dosen', async (req, res) => {
 
 router.post('/dosen', async (req, res) => {
   try {
-    const { nama, email, password, nid, spesialisasi } = req.body;
+    const { nama, email, password, nid, spesialisasi, mataKuliahIds } = req.body;
     const finalEmail = (email && email.trim()) ? email : `${nid.trim()}@lecturer.umi.ac.id`;
     const finalPassword = (password && password.trim()) ? password : '123';
 
@@ -230,9 +237,27 @@ router.post('/dosen', async (req, res) => {
         email: finalEmail,
         passwordHash,
         roleId: roleId.id,
-        dosen: { create: { nid, spesialisasi } },
+        dosen: {
+          create: {
+            nid,
+            spesialisasi,
+            dosenMataKuliah: {
+              create: (mataKuliahIds || []).map(id => ({
+                mataKuliahId: parseInt(id)
+              }))
+            }
+          }
+        },
       },
-      include: { dosen: true },
+      include: {
+        dosen: {
+          include: {
+            dosenMataKuliah: {
+              include: { mataKuliah: true }
+            }
+          }
+        }
+      },
     });
     const { passwordHash: _, ...userSafe } = user;
     res.status(201).json({ message: 'Dosen berhasil ditambahkan.', data: userSafe });
@@ -244,7 +269,7 @@ router.post('/dosen', async (req, res) => {
 // PUT update dosen
 router.put('/dosen/:id', async (req, res) => {
   try {
-    const { nid, spesialisasi, nama, email, aktif } = req.body;
+    const { nid, spesialisasi, nama, email, aktif, mataKuliahIds } = req.body;
     const dosen = await prisma.dosen.findUnique({
       where: { id: parseInt(req.params.id) },
       include: { user: true },
@@ -253,19 +278,30 @@ router.put('/dosen/:id', async (req, res) => {
 
     const finalEmail = email || `${nid.trim()}@lecturer.umi.ac.id`;
 
-    await prisma.dosen.update({
-      where: { id: dosen.id },
-      data: { nid, spesialisasi },
-    });
+    await prisma.$transaction([
+      prisma.dosenMataKuliah.deleteMany({
+        where: { dosenId: dosen.id }
+      }),
+      prisma.dosenMataKuliah.createMany({
+        data: (mataKuliahIds || []).map(id => ({
+          dosenId: dosen.id,
+          mataKuliahId: parseInt(id)
+        }))
+      }),
+      prisma.dosen.update({
+        where: { id: dosen.id },
+        data: { nid, spesialisasi },
+      }),
+      prisma.user.update({
+        where: { id: dosen.userId },
+        data: { 
+          nama, 
+          email: finalEmail, 
+          aktif: aktif !== undefined ? aktif : undefined 
+        },
+      })
+    ]);
     
-    await prisma.user.update({
-      where: { id: dosen.userId },
-      data: { 
-        nama, 
-        email: finalEmail, 
-        aktif: aktif !== undefined ? aktif : undefined 
-      },
-    });
     res.json({ message: 'Data dosen berhasil diperbarui.' });
   } catch (error) {
     res.status(500).json({ message: 'Gagal memperbarui dosen.', error: error.message });
@@ -280,6 +316,7 @@ router.delete('/dosen/:id', async (req, res) => {
     if (!dosen) return res.status(404).json({ message: 'Dosen tidak ditemukan.' });
 
     await prisma.$transaction([
+      prisma.dosenMataKuliah.deleteMany({ where: { dosenId: dosenId } }),
       prisma.pengampu.deleteMany({ where: { dosenId: dosenId } }),
       prisma.user.delete({ where: { id: dosen.userId } })
     ]);
@@ -387,6 +424,12 @@ router.delete('/matkul/:id', async (req, res) => {
 
     // Hapus semua relasi dependent bertingkat secara berurutan sesuai arah foreign keys
     await prisma.$transaction([
+      // Hapus relasi dosen mata kuliah
+      prisma.dosenMataKuliah.deleteMany({ where: { mataKuliahId: mkId } }),
+      // Hapus peserta kelas untuk kelas matkul ini
+      prisma.pesertaKelas.deleteMany({ where: { kelas: { mataKuliahId: mkId } } }),
+      // Hapus kelas untuk matkul ini
+      prisma.kelas.deleteMany({ where: { mataKuliahId: mkId } }),
       // 1. Nilai (tergantung pada KomponenNilai)
       prisma.nilai.deleteMany({ where: { komponen: { mataKuliahId: mkId } } }),
       // 2. KomponenNilai (tergantung pada MataKuliah)
