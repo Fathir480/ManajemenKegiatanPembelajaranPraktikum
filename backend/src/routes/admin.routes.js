@@ -921,8 +921,7 @@ router.post('/jadwal/bulk', async (req, res) => {
         const targetKelas = await prisma.kelas.findFirst({
           where: {
             namaKelas: className,
-            mataKuliahId: mk.id,
-            semester: finalSemester
+            mataKuliahId: mk.id
           }
         });
         if (targetKelas) {
@@ -936,17 +935,11 @@ router.post('/jadwal/bulk', async (req, res) => {
           }
         } else {
           // If class doesn't exist, create it dynamically
-          if (!dosId) {
-            skipCount++;
-            errors.push(`Kelas ${className} untuk ${courseCode} belum terdaftar, dan NID Dosen tidak disediakan untuk membuatnya.`);
-            continue;
-          }
           const newKelas = await prisma.kelas.create({
             data: {
               namaKelas: className,
               mataKuliahId: mk.id,
-              dosenId: dosId,
-              semester: finalSemester
+              dosenId: dosId || null
             }
           });
           kId = newKelas.id;
@@ -1460,35 +1453,78 @@ router.get('/kelas', async (req, res) => {
   }
 });
 
-// POST buat kelas baru
+// POST buat kelas baru (otomatis / bulk)
 router.post('/kelas', async (req, res) => {
   try {
-    const { namaKelas, mataKuliahId, dosenId, semester } = req.body;
+    const { mataKuliahId, dosenId, jumlahKelas, namaKelas } = req.body;
     
-    // validasi duplicate
-    const existing = await prisma.kelas.findUnique({
-      where: {
-        namaKelas_mataKuliahId_semester: {
-          namaKelas,
-          mataKuliahId: parseInt(mataKuliahId),
-          semester
-        }
-      }
-    });
+    const mkId = parseInt(mataKuliahId);
+    const dId = dosenId ? parseInt(dosenId) : null;
+    const count = parseInt(jumlahKelas) || 1;
 
-    if (existing) {
-      return res.status(400).json({ message: 'Kelas dengan mata kuliah dan semester tersebut sudah ada.' });
+    if (namaKelas) {
+      // Pembuatan kelas tunggal manual
+      const existing = await prisma.kelas.findUnique({
+        where: {
+          namaKelas_mataKuliahId: {
+            namaKelas,
+            mataKuliahId: mkId
+          }
+        }
+      });
+
+      if (existing) {
+        return res.status(400).json({ message: 'Kelas dengan mata kuliah tersebut sudah ada.' });
+      }
+
+      const newKelas = await prisma.kelas.create({
+        data: {
+          namaKelas,
+          mataKuliahId: mkId,
+          dosenId: dId
+        }
+      });
+      return res.status(201).json(newKelas);
     }
 
-    const newKelas = await prisma.kelas.create({
-      data: {
-        namaKelas,
-        mataKuliahId: parseInt(mataKuliahId),
-        dosenId: parseInt(dosenId),
-        semester
+    // Pembuatan otomatis berurutan (A1, A2, A3...)
+    // 1. Dapatkan kelas yang sudah ada untuk matkul ini
+    const existingClasses = await prisma.kelas.findMany({
+      where: {
+        mataKuliahId: mkId
       }
     });
-    res.status(201).json(newKelas);
+
+    // 2. Cari angka maksimal dari nama kelas berformat A<angka>
+    const numbers = existingClasses
+      .map(k => {
+        const match = k.namaKelas.match(/^A(\d+)$/);
+        return match ? parseInt(match[1]) : 0;
+      })
+      .filter(num => num > 0);
+
+    const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+
+    // 3. Buat kelas sebanyak `count`
+    const createdClasses = [];
+    for (let i = 1; i <= count; i++) {
+      const nextNum = maxNumber + i;
+      const nextClassName = `A${nextNum}`;
+
+      const newKelas = await prisma.kelas.create({
+        data: {
+          namaKelas: nextClassName,
+          mataKuliahId: mkId,
+          dosenId: dId
+        }
+      });
+      createdClasses.push(newKelas);
+    }
+
+    res.status(201).json({
+      message: `Berhasil membuat ${count} kelas secara otomatis.`,
+      data: createdClasses
+    });
   } catch (error) {
     res.status(500).json({ message: 'Gagal membuat kelas.', error: error.message });
   }
@@ -1499,15 +1535,14 @@ router.post('/kelas', async (req, res) => {
 router.put('/kelas/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { namaKelas, mataKuliahId, dosenId, semester, aktif } = req.body;
+    const { namaKelas, mataKuliahId, dosenId, aktif } = req.body;
 
     const updated = await prisma.kelas.update({
       where: { id: parseInt(id) },
       data: {
         namaKelas,
         mataKuliahId: parseInt(mataKuliahId),
-        dosenId: parseInt(dosenId),
-        semester,
+        dosenId: dosenId ? parseInt(dosenId) : null,
         aktif: aktif === 'true' || aktif === true
       }
     });
