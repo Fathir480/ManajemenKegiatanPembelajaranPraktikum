@@ -241,8 +241,12 @@ export default function AdminDashboard() {
           {[
             { href: '/admin/mahasiswa', label: 'Manage Students', desc: 'Student directories & records' },
             { href: '/admin/dosen', label: 'Manage Lecturers', desc: 'Lecturer directories & NIDs' },
+            { href: '/admin/asisten', label: 'Manage Assistants', desc: 'Assistant records & status' },
             { href: '/admin/jadwal', label: 'Manage Schedules', desc: 'Practical slots & session times' },
             { href: '/admin/matkul', label: 'Course Management', desc: 'Curriculum structures' },
+            { href: '/admin/kelas', label: 'Manage Classes', desc: 'Class details & enrollment' },
+            { href: '/admin/ruangan', label: 'Manage Lab Rooms', desc: 'Room capacities & availability' },
+            { href: '/admin/absensi', label: 'Attendance Recap', desc: 'Overall attendance logs' },
             { href: '/admin/ajuan', label: 'Validate Requests', desc: `${stats.ajuan} waiting for review` },
           ].map(item => (
             <a key={item.href} href={item.href}
