@@ -1959,5 +1959,87 @@ router.post('/ruangan/bulk', async (req, res) => {
   }
 });
 
+// ── REKAP NILAI (ADMIN VIEW) ─────────────────────────────────
+
+// GET nilai mahasiswa di suatu kelas
+router.get('/nilai/kelas/:kelasId', async (req, res) => {
+  try {
+    const kelasId = parseInt(req.params.kelasId);
+    
+    // 1. Ambil detail kelas
+    const kelas = await prisma.kelas.findUnique({
+      where: { id: kelasId },
+      include: {
+        mataKuliah: true,
+      }
+    });
+    
+    if (!kelas) return res.status(404).json({ message: 'Kelas tidak ditemukan.' });
+
+    // 2. Ambil komponen nilai untuk mata kuliah tersebut
+    const komponen = await prisma.komponenNilai.findMany({
+      where: { mataKuliahId: kelas.mataKuliahId },
+      orderBy: { id: 'asc' }
+    });
+
+    // 3. Ambil daftar peserta kelas beserta user-nya
+    const peserta = await prisma.pesertaKelas.findMany({
+      where: { kelasId },
+      include: {
+        mahasiswa: {
+          include: {
+            user: { select: { nama: true } }
+          }
+        }
+      }
+    });
+
+    // 4. Ambil semua nilai untuk peserta kelas ini pada mata kuliah ini
+    const mahasiswaIds = peserta.map(p => p.mahasiswaId);
+    
+    const nilai = await prisma.nilai.findMany({
+      where: {
+        mahasiswaId: { in: mahasiswaIds },
+        komponen: { mataKuliahId: kelas.mataKuliahId }
+      },
+      include: {
+        komponen: { select: { nama: true, kategori: true } }
+      }
+    });
+
+    // Format response agar mudah di-consume oleh frontend
+    const formattedStudents = peserta.map(p => {
+      const mhs = p.mahasiswa;
+      // Filter nilai milik mahasiswa ini
+      const nilaiMhs = nilai.filter(n => n.mahasiswaId === mhs.id);
+      
+      return {
+        id: mhs.id,
+        stambuk: mhs.stambuk,
+        nama: mhs.user.nama,
+        nilai: nilaiMhs.map(n => ({
+          komponenId: n.komponenId,
+          nilai: n.nilai,
+          kategori: n.komponen.kategori,
+          namaKomponen: n.komponen.nama
+        }))
+      };
+    });
+
+    res.json({
+      kelas: {
+        id: kelas.id,
+        namaKelas: kelas.namaKelas,
+        mataKuliah: kelas.mataKuliah.nama,
+        kode: kelas.mataKuliah.kode
+      },
+      komponen,
+      students: formattedStudents
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil rekap nilai kelas.', error: error.message });
+  }
+});
+
 module.exports = router;
 

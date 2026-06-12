@@ -247,6 +247,7 @@ export default function AdminDashboard() {
             { href: '/admin/kelas', label: 'Manage Classes', desc: 'Class details & enrollment' },
             { href: '/admin/ruangan', label: 'Manage Lab Rooms', desc: 'Room capacities & availability' },
             { href: '/admin/absensi', label: 'Attendance Recap', desc: 'Overall attendance logs' },
+            { href: '/admin/nilai', label: 'View Grades', desc: 'Detailed student scores' },
             { href: '/admin/ajuan', label: 'Validate Requests', desc: `${stats.ajuan} waiting for review` },
           ].map(item => (
             <a key={item.href} href={item.href}
