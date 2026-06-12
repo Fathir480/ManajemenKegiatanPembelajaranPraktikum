@@ -133,17 +133,16 @@ export default function KelolaDosen() {
     }
   };
 
-  // --- BULK IMPORT EXCEL LOGIC ---
   const handleDownloadTemplate = () => {
     const headers = [['Name', 'NID']];
-    const mockData = [
-      ['Prof. Dr. Ir. H. Anwar', 'NID-002'],
-      ['Siti Fatimah, S.T, M.T', 'NID-003']
-    ];
-    const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...mockData]);
+    const dataRows = dosen.map(d => [
+      d.user?.nama || '',
+      d.nid || ''
+    ]);
+    const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...dataRows]);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
-    XLSX.writeFile(workbook, 'Lecturer_Import_Template.xlsx');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Lecturers');
+    XLSX.writeFile(workbook, 'Lecturer_Export_List.xlsx');
   };
 
   const handleBulkUpload = (e) => {
@@ -436,7 +435,7 @@ export default function KelolaDosen() {
               </p>
 
               <button className="btn btn-outline" style={{ width: '100%', marginBottom: '24px', justifyContent: 'center' }} onClick={handleDownloadTemplate}>
-                Download Excel Template (.xlsx)
+                Export Data & Template (.xlsx)
               </button>
 
               <div className="form-group" style={{ border: '2px dashed var(--hairline-strong)', padding: '24px', borderRadius: 'var(--radius-lg)', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>

@@ -43,17 +43,19 @@ export default function KelolaMatkul() {
     fetchMatkul();
   }, []);
 
-  // --- BULK IMPORT EXCEL LOGIC ---
   const handleDownloadTemplate = () => {
     const headers = [['Code', 'Name', 'Credits', 'Type', 'Description']];
-    const mockData = [
-      ['IF101', 'Algorithm & Programming', 3, 'both', 'Introduction to computer programming'],
-      ['IF102', 'Operating Systems', 2, 'practicum', 'Modern operating systems concepts']
-    ];
-    const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...mockData]);
+    const dataRows = matkul.map(m => [
+      m.kode,
+      m.nama,
+      m.sks,
+      m.tipe === 'keduanya' ? 'both' : m.tipe === 'kuliah' ? 'lecture' : 'practicum',
+      m.deskripsi || ''
+    ]);
+    const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...dataRows]);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
-    XLSX.writeFile(workbook, 'Course_Import_Template.xlsx');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Courses');
+    XLSX.writeFile(workbook, 'Course_Export_List.xlsx');
   };
 
   const handleBulkUpload = (e) => {
@@ -309,7 +311,7 @@ export default function KelolaMatkul() {
               </p>
 
               <button className="btn btn-outline" style={{ width: '100%', marginBottom: '24px', justifyContent: 'center' }} onClick={handleDownloadTemplate}>
-                Download Excel Template (.xlsx)
+                Export Data & Template (.xlsx)
               </button>
 
               <div className="form-group" style={{ border: '2px dashed var(--hairline-strong)', padding: '24px', borderRadius: 'var(--radius-lg)', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>

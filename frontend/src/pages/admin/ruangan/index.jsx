@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { api } from '../../../lib/api';
+import * as XLSX from 'xlsx';
 import './ruangan.css';
 
 export default function KelolaRuangan() {
@@ -12,6 +13,7 @@ export default function KelolaRuangan() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
   const [selectedRuangan, setSelectedRuangan] = useState(null);
 
@@ -107,6 +109,61 @@ export default function KelolaRuangan() {
     }
   };
 
+  const handleExportExcel = () => {
+    const headers = [['Room Code', 'Lab Room Name', 'Capacity']];
+    const dataRows = filteredRuangan.map(r => [
+      r.kode || '',
+      r.nama || '',
+      r.kapasitas || ''
+    ]);
+    const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...dataRows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Lab Rooms');
+    XLSX.writeFile(workbook, 'Lab_Rooms_List.xlsx');
+  };
+
+  const handleBulkUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        setError('');
+        setSuccess('');
+        setLoading(true);
+
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawData = XLSX.utils.sheet_to_json(ws);
+
+        if (rawData.length === 0) {
+          setError('Excel file is empty or format is invalid');
+          setLoading(false);
+          return;
+        }
+
+        const items = rawData.map(r => ({
+          kode: String(r['Room Code'] || r['Kode Ruangan'] || r['Kode'] || ''),
+          nama: String(r['Lab Room Name'] || r['Nama Ruangan'] || r['Nama'] || ''),
+          kapasitas: r['Capacity'] || r['Kapasitas'] || null
+        }));
+
+        const res = await api.post('/admin/ruangan/bulk', { items });
+        setSuccess(res.message);
+        setIsBulkModalOpen(false);
+        fetchRuangan();
+      } catch (err) {
+        setError(err.message || 'Failed to process Excel file');
+      } finally {
+        setLoading(false);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const filteredRuangan = ruangan.filter(r =>
     r.nama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.kode?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -120,6 +177,9 @@ export default function KelolaRuangan() {
           <p className="page-subtitle">Manage practicum lab rooms, codes, and student capacities</p>
         </div>
         <div className="flex gap-3">
+          <button className="btn btn-ghost" onClick={() => setIsBulkModalOpen(true)}>
+            Bulk Import (Excel)
+          </button>
           <button className="btn btn-primary" onClick={handleOpenAddModal}>
             Add Lab Room
           </button>
@@ -282,6 +342,55 @@ export default function KelolaRuangan() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* modal bulk upload */}
+      {isBulkModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Bulk Lab Room Import</h3>
+              <button className="modal-close" onClick={() => setIsBulkModalOpen(false)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="login-form">
+              <p style={{ fontSize: '14px', color: 'var(--body)', marginBottom: '16px', lineHeight: 1.6 }}>
+                Upload an Excel spreadsheet (.xlsx or .xls) to register lab rooms in bulk.
+              </p>
+
+              <button className="btn btn-outline" style={{ width: '100%', marginBottom: '24px', justifyContent: 'center' }} onClick={handleExportExcel}>
+                Export Data & Template (.xlsx)
+              </button>
+
+              <div className="form-group" style={{ border: '2px dashed var(--hairline-strong)', padding: '24px', borderRadius: 'var(--radius-lg)', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
+                <span style={{ fontSize: '32px' }}></span>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--ink)', marginTop: '8px' }}>
+                  Select Excel Template File
+                </div>
+                <div className="text-muted text-mono" style={{ fontSize: '11px', marginTop: '4px' }}>
+                  Only supports .xlsx and .xls formats
+                </div>
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls"
+                  onChange={handleBulkUpload}
+                  style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
+                />
+              </div>
+
+              <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setIsBulkModalOpen(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

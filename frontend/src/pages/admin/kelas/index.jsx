@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { api } from '../../../lib/api';
+import * as XLSX from 'xlsx';
 import './kelas.css';
 
 export default function KelolaKelas() {
@@ -17,6 +18,7 @@ export default function KelolaKelas() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPesertaModalOpen, setIsPesertaModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
   const [selectedKelas, setSelectedKelas] = useState(null);
   
@@ -179,6 +181,65 @@ export default function KelolaKelas() {
     }
   };
 
+  const handleExportExcel = () => {
+    const headers = [['Class Name', 'Course Code', 'Lecturer NID', 'Course Name', 'Lecturer Name', 'Total Participants', 'Status']];
+    const dataRows = filteredKelas.map(k => [
+      k.namaKelas || '',
+      k.mataKuliah?.kode || '',
+      k.dosen?.nid || '',
+      k.mataKuliah?.nama || '',
+      k.dosen?.user?.nama || '',
+      k._count?.pesertaKelas || 0,
+      k.aktif ? 'Active' : 'Inactive'
+    ]);
+    const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...dataRows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Classes');
+    XLSX.writeFile(workbook, 'Class_List.xlsx');
+  };
+
+  const handleBulkUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        setError('');
+        setSuccess('');
+        setLoading(true);
+
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawData = XLSX.utils.sheet_to_json(ws);
+
+        if (rawData.length === 0) {
+          setError('Excel file is empty or format is invalid');
+          setLoading(false);
+          return;
+        }
+
+        const items = rawData.map(r => ({
+          namaKelas: String(r['Class Name'] || r['Nama Kelas'] || r['Kelas'] || ''),
+          mataKuliahKode: String(r['Course Code'] || r['Kode Matakuliah'] || r['Kode Matkul'] || ''),
+          dosenNID: String(r['Lecturer NID'] || r['NID Dosen'] || r['NID'] || '')
+        }));
+
+        const res = await api.post('/admin/kelas/bulk', { items });
+        setSuccess(res.message);
+        setIsBulkModalOpen(false);
+        fetchData();
+      } catch (err) {
+        setError(err.message || 'Failed to process Excel file');
+      } finally {
+        setLoading(false);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const filteredKelas = kelas.filter(k => 
     k.namaKelas.toLowerCase().includes(searchTerm.toLowerCase()) ||
     k.mataKuliah?.nama.toLowerCase().includes(searchTerm.toLowerCase())
@@ -192,6 +253,9 @@ export default function KelolaKelas() {
           <p className="page-subtitle">Manage academic classes, assign lecturers, and enroll student participants (KRS)</p>
         </div>
         <div className="flex gap-3">
+          <button className="btn btn-ghost" onClick={() => setIsBulkModalOpen(true)}>
+            Bulk Import (Excel)
+          </button>
           <button className="btn btn-primary" onClick={handleOpenAddModal}>
             Add Class
           </button>
@@ -503,6 +567,55 @@ export default function KelolaKelas() {
               <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsPesertaModalOpen(false)}>
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* modal bulk upload */}
+      {isBulkModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Bulk Class Import</h3>
+              <button className="modal-close" onClick={() => setIsBulkModalOpen(false)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="login-form">
+              <p style={{ fontSize: '14px', color: 'var(--body)', marginBottom: '16px', lineHeight: 1.6 }}>
+                Upload an Excel spreadsheet (.xlsx or .xls) to register classes in bulk.
+              </p>
+
+              <button className="btn btn-outline" style={{ width: '100%', marginBottom: '24px', justifyContent: 'center' }} onClick={handleExportExcel}>
+                Export Data & Template (.xlsx)
+              </button>
+
+              <div className="form-group" style={{ border: '2px dashed var(--hairline-strong)', padding: '24px', borderRadius: 'var(--radius-lg)', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
+                <span style={{ fontSize: '32px' }}></span>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--ink)', marginTop: '8px' }}>
+                  Select Excel Template File
+                </div>
+                <div className="text-muted text-mono" style={{ fontSize: '11px', marginTop: '4px' }}>
+                  Only supports .xlsx and .xls formats
+                </div>
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls"
+                  onChange={handleBulkUpload}
+                  style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
+                />
+              </div>
+
+              <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setIsBulkModalOpen(false)}>
+                  Cancel
                 </button>
               </div>
             </div>

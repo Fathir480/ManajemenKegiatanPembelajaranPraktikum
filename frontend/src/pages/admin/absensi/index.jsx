@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { api } from '../../../lib/api';
+import * as XLSX from 'xlsx';
 import './absensi.css';
 
 export default function AdminAbsensi() {
@@ -150,12 +151,43 @@ export default function AdminAbsensi() {
     return `${day}/${month}`;
   };
 
+  const handleExportExcel = () => {
+    const dateHeaders = sessions.map(s => formatDateDisplay(s.tanggal));
+    const headers = [['Student Name', 'NIM / Stambuk', ...dateHeaders]];
+    
+    const dataRows = students.map(std => {
+      const row = [std.nama, std.stambuk];
+      sessions.forEach(s => {
+        const status = getAttendanceStatus(std.id, s.id);
+        const initial = status === 'hadir' ? 'H' : status === 'izin' ? 'I' : status === 'sakit' ? 'S' : 'A';
+        row.push(initial);
+      });
+      return row;
+    });
+
+    const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...dataRows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance Matrix');
+    
+    const selectedClass = classes.find(c => String(c.id) === selectedKelasId);
+    const classNameStr = selectedClass ? `${selectedClass.namaKelas}_${selectedClass.mataKuliah?.nama}`.replace(/[^a-zA-Z0-9_]/g, '_') : 'Class';
+    
+    XLSX.writeFile(workbook, `Attendance_Matrix_${classNameStr}.xlsx`);
+  };
+
   return (
     <DashboardLayout title="Manage Attendance">
       <div className="page-header">
         <div className="page-header-left">
           <h1 style={{ fontSize: '28px' }}>Practical Course Attendance</h1>
           <p className="page-subtitle">Monitor student attendance logs, modify session dates, and override individual attendance statuses</p>
+        </div>
+        <div className="flex gap-3">
+          {selectedKelasId && students.length > 0 && sessions.length > 0 && (
+            <button className="btn btn-ghost" onClick={handleExportExcel}>
+              Export to Excel
+            </button>
+          )}
         </div>
       </div>
 

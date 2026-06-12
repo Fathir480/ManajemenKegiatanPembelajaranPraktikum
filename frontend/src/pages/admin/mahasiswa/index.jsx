@@ -139,14 +139,16 @@ export default function KelolaMahasiswa() {
   // --- BULK IMPORT EXCEL LOGIC ---
   const handleDownloadTemplate = () => {
     const headers = [['Nama', 'Stambuk', 'Angkatan', 'Program Studi']];
-    const mockData = [
-      ['Siti Aminah', 'H071231024', 2023, 'Sistem Informasi'],
-      ['Budi Gunawan', 'H071231055', 2023, 'Sistem Informasi']
-    ];
-    const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...mockData]);
+    const dataRows = mahasiswa.map(m => [
+      m.user?.nama || '',
+      m.stambuk || '',
+      m.angkatan || '',
+      m.programStudi || ''
+    ]);
+    const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...dataRows]);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
-    XLSX.writeFile(workbook, 'Template_Impor_Mahasiswa.xlsx');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Students');
+    XLSX.writeFile(workbook, 'Student_Export_List.xlsx');
   };
 
   const handleBulkUpload = (e) => {
@@ -428,7 +430,7 @@ export default function KelolaMahasiswa() {
               </p>
 
               <button className="btn btn-outline" style={{ width: '100%', marginBottom: '24px', justifyContent: 'center' }} onClick={handleDownloadTemplate}>
-                Download Excel Template (.xlsx)
+                Export Data & Template (.xlsx)
               </button>
 
               <div className="form-group" style={{ border: '2px dashed var(--hairline-strong)', padding: '24px', borderRadius: 'var(--radius-lg)', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>

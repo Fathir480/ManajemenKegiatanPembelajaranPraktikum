@@ -1831,5 +1831,133 @@ router.put('/absensi/update', async (req, res) => {
   }
 });
 
+// POST impor massal kelas (Excel/CSV)
+router.post('/kelas/bulk', async (req, res) => {
+  try {
+    const { items } = req.body; // Array dari { namaKelas, mataKuliahKode, dosenNID }
+    if (!Array.isArray(items)) return res.status(400).json({ message: 'Data items harus berupa array.' });
+
+    let successCount = 0;
+    let skipCount = 0;
+
+    for (const item of items) {
+      try {
+        const { namaKelas, mataKuliahKode, dosenNID } = item;
+        if (!namaKelas || !mataKuliahKode) {
+          skipCount++;
+          continue;
+        }
+
+        // Cari mata kuliah berdasarkan kode
+        const mk = await prisma.mataKuliah.findUnique({
+          where: { kode: String(mataKuliahKode).trim() }
+        });
+        if (!mk) {
+          skipCount++;
+          continue;
+        }
+
+        // Cari dosen berdasarkan NID jika diberikan
+        let dId = null;
+        if (dosenNID) {
+          const dosen = await prisma.dosen.findUnique({
+            where: { nid: String(dosenNID).trim() }
+          });
+          if (dosen) {
+            dId = dosen.id;
+          }
+        }
+
+        // Cek apakah sudah ada kelas dengan kombinasi [namaKelas, mataKuliahId]
+        const existing = await prisma.kelas.findUnique({
+          where: {
+            namaKelas_mataKuliahId: {
+              namaKelas: String(namaKelas).trim(),
+              mataKuliahId: mk.id
+            }
+          }
+        });
+
+        if (existing) {
+          // Jika kelas sudah ada, kita update Dosen pengampunya jika diubah
+          await prisma.kelas.update({
+            where: { id: existing.id },
+            data: { dosenId: dId }
+          });
+          successCount++;
+        } else {
+          // Jika belum ada, buat baru
+          await prisma.kelas.create({
+            data: {
+              namaKelas: String(namaKelas).trim(),
+              mataKuliahId: mk.id,
+              dosenId: dId
+            }
+          });
+          successCount++;
+        }
+      } catch (err) {
+        skipCount++;
+      }
+    }
+
+    res.json({ message: `Impor massal selesai. ${successCount} kelas berhasil ditambahkan/diperbarui, ${skipCount} dilewati.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal melakukan impor massal kelas.', error: error.message });
+  }
+});
+
+// POST impor massal ruangan/lab (Excel/CSV)
+router.post('/ruangan/bulk', async (req, res) => {
+  try {
+    const { items } = req.body; // Array dari { kode, nama, kapasitas }
+    if (!Array.isArray(items)) return res.status(400).json({ message: 'Data items harus berupa array.' });
+
+    let successCount = 0;
+    let skipCount = 0;
+
+    for (const item of items) {
+      try {
+        const { kode, nama, kapasitas } = item;
+        if (!kode || !nama) {
+          skipCount++;
+          continue;
+        }
+
+        const existing = await prisma.ruangan.findUnique({
+          where: { kode: String(kode).trim() }
+        });
+
+        const cap = kapasitas ? parseInt(kapasitas) : null;
+
+        if (existing) {
+          // Update data jika sudah ada
+          await prisma.ruangan.update({
+            where: { id: existing.id },
+            data: { nama: String(nama).trim(), kapasitas: cap }
+          });
+          successCount++;
+        } else {
+          // Buat baru jika belum ada
+          await prisma.ruangan.create({
+            data: {
+              kode: String(kode).trim(),
+              nama: String(nama).trim(),
+              kapasitas: cap
+            }
+          });
+          successCount++;
+        }
+      } catch (err) {
+        skipCount++;
+      }
+    }
+
+    res.json({ message: `Impor massal selesai. ${successCount} ruangan/lab berhasil ditambahkan/diperbarui, ${skipCount} dilewati.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal melakukan impor massal ruangan.', error: error.message });
+  }
+});
+
 module.exports = router;
 
