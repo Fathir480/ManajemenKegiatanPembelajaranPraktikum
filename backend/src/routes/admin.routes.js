@@ -1977,11 +1977,33 @@ router.get('/nilai/kelas/:kelasId', async (req, res) => {
     if (!kelas) return res.status(404).json({ message: 'Kelas tidak ditemukan.' });
 
     // 2. Ambil komponen nilai untuk mata kuliah tersebut
-    const komponen = await prisma.komponenNilai.findMany({
+    let komponen = await prisma.komponenNilai.findMany({
       where: { mataKuliahId: kelas.mataKuliahId },
       orderBy: { id: 'asc' }
     });
 
+    // Auto-generate standard components if none exist
+    if (komponen.length === 0) {
+      const defaultComponents = [
+        { nama: 'Praktikum 1', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 2', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 3', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 4', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 5', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 6', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Asistensi 1', bobot: 5, kategori: 'asistensi', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Asistensi 2', bobot: 5, kategori: 'asistensi', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Asistensi 3', bobot: 5, kategori: 'asistensi', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'UTS', bobot: 25, kategori: 'uts', diinputOleh: 'dosen', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'UAS', bobot: 30, kategori: 'uas', diinputOleh: 'dosen', mataKuliahId: kelas.mataKuliahId }
+      ];
+      await prisma.komponenNilai.createMany({ data: defaultComponents });
+      
+      komponen = await prisma.komponenNilai.findMany({
+        where: { mataKuliahId: kelas.mataKuliahId },
+        orderBy: { id: 'asc' }
+      });
+    }
     // 3. Ambil daftar peserta kelas beserta user-nya
     const peserta = await prisma.pesertaKelas.findMany({
       where: { kelasId },

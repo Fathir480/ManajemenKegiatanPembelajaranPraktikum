@@ -29,7 +29,6 @@ import AsistenMateri from './pages/asisten/materi';
 
 // Dosen Subpages
 import DosenNilai from './pages/dosen/nilai';
-import DosenRekap from './pages/dosen/rekap';
 import DosenMateri from './pages/dosen/materi';
 import DosenAjuan from './pages/dosen/ajuan';
 
@@ -135,9 +134,6 @@ export default function App() {
         } />
         <Route path="/dosen/nilai" element={
           <PrivateRoute allowedRoles={['dosen']}><DosenNilai /></PrivateRoute>
-        } />
-        <Route path="/dosen/rekap" element={
-          <PrivateRoute allowedRoles={['dosen']}><DosenRekap /></PrivateRoute>
         } />
         <Route path="/dosen/materi" element={
           <PrivateRoute allowedRoles={['dosen']}><DosenMateri /></PrivateRoute>

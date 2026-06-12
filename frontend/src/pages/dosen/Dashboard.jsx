@@ -66,7 +66,7 @@ export default function DosenDashboard() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <a href={`/dosen/rekap?mk=${mk.id}`} className="btn btn-outline btn-sm">Grade Recap</a>
+                        <a href={`/dosen/nilai?mk=${mk.id}`} className="btn btn-outline btn-sm">Grades</a>
                         <a href={`/dosen/materi?mk=${mk.id}`} className="btn btn-ghost btn-sm">Materials</a>
                       </div>
                     </td>
@@ -80,8 +80,7 @@ export default function DosenDashboard() {
 
       <div className="grid-3">
         {[
-          { href: '/dosen/nilai', label: 'Exam Grade Input', desc: 'Enter student exam grades (UTS/UAS)' },
-          { href: '/dosen/rekap', label: 'Grade Recap', desc: 'View overall student final grades' },
+          { href: '/dosen/nilai', label: 'Grades', desc: 'Manage grades and input UTS/UAS' },
           { href: '/dosen/materi', label: 'Upload Material', desc: 'Upload modules, slides, and references' },
         ].map(item => (
           <a key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--hairline)', textDecoration: 'none', transition: 'all var(--transition)' }}
