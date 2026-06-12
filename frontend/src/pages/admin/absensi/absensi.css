@@ -60,70 +60,77 @@
   box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.2);
 }
 
-/* Styled inline selects for attendance status */
+/* Styled inline selects for attendance status (Black & White Theme) */
 .status-select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  padding: 4px 12px !important;
+  padding: 4px 6px !important;
   text-align: center;
   text-align-last: center;
-  border-radius: 0px !important; /* theme-admin border radius */
+  border-radius: var(--radius-sm) !important;
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.5px;
-  width: 100px;
-  height: 28px;
-  border: 1px solid transparent !important;
+  width: 48px;
+  height: 26px;
+  background-color: var(--surface-soft) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--hairline-strong) !important;
   transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.status-select option {
+  background-color: #18181b !important; /* Solid zinc-900 background */
+  color: #ffffff !important;            /* White text */
+}
+
+.status-select:hover {
+  background-color: var(--card-bg-hover) !important;
+  border-color: var(--muted) !important;
 }
 
 .status-select:focus {
   outline: none;
+  border-color: var(--primary) !important;
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
 }
 
-/* Hadir (Green) */
-.status-select.status-hadir {
-  background-color: rgba(46, 213, 115, 0.08) !important;
-  color: #2ed573 !important;
-  border-color: rgba(46, 213, 115, 0.15) !important;
-}
-.status-select.status-hadir:hover {
-  background-color: rgba(46, 213, 115, 0.15) !important;
-  border-color: rgba(46, 213, 115, 0.3) !important;
-}
-
-/* Izin (Orange/Yellow) */
-.status-select.status-izin {
-  background-color: rgba(255, 165, 0, 0.08) !important;
-  color: #ffa500 !important;
-  border-color: rgba(255, 165, 0, 0.15) !important;
-}
-.status-select.status-izin:hover {
-  background-color: rgba(255, 165, 0, 0.15) !important;
-  border-color: rgba(255, 165, 0, 0.3) !important;
-}
-
-/* Sakit (Blue) */
-.status-select.status-sakit {
-  background-color: rgba(30, 144, 255, 0.08) !important;
-  color: #1e90ff !important;
-  border-color: rgba(30, 144, 255, 0.15) !important;
-}
-.status-select.status-sakit:hover {
-  background-color: rgba(30, 144, 255, 0.15) !important;
-  border-color: rgba(30, 144, 255, 0.3) !important;
-}
-
-/* Alpa (Red) */
+/* Override color styles for monochrome black & white theme */
+.status-select.status-hadir,
+.status-select.status-izin,
+.status-select.status-sakit,
 .status-select.status-alpa {
-  background-color: rgba(255, 71, 87, 0.08) !important;
-  color: #ff4757 !important;
-  border-color: rgba(255, 71, 87, 0.15) !important;
+  background-color: var(--surface-soft) !important;
+  color: var(--ink) !important;
+  border-color: var(--hairline-strong) !important;
 }
+
+.status-select.status-hadir:hover,
+.status-select.status-izin:hover,
+.status-select.status-sakit:hover,
 .status-select.status-alpa:hover {
-  background-color: rgba(255, 71, 87, 0.15) !important;
-  border-color: rgba(255, 71, 87, 0.3) !important;
+  background-color: var(--card-bg-hover) !important;
+  border-color: var(--muted) !important;
+}
+
+/* Custom scrollbar styling for the attendance matrix container */
+.absensi-matrix-wrapper::-webkit-scrollbar {
+  height: 8px; /* slim scrollbar */
+}
+
+.absensi-matrix-wrapper::-webkit-scrollbar-track {
+  background: var(--surface-soft);
+  border-radius: var(--radius-sm);
+}
+
+.absensi-matrix-wrapper::-webkit-scrollbar-thumb {
+  background: var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  transition: background 0.25s ease;
+}
+
+.absensi-matrix-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
