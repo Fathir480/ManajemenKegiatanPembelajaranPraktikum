@@ -315,7 +315,9 @@ tbody td { padding: var(--space-3) var(--space-4); color: var(--body); font-size
 /* ── SIDEBAR ──────────────────────────────────────────────── */
 .sidebar {
   width: 256px;
-  min-height: 100vh;
+  height: 100vh;
+  position: sticky;
+  top: 0;
   background: var(--surface);
   border-right: 1px solid var(--hairline);
   display: flex;
@@ -340,7 +342,7 @@ tbody td { padding: var(--space-3) var(--space-4); color: var(--body); font-size
   color: var(--pacific-blue);
   margin-top: 2px;
 }
-.sidebar-nav { flex: 1; padding: var(--space-4) 0; }
+.sidebar-nav { flex: 1; padding: var(--space-4) 0; overflow-y: auto; }
 .sidebar-section-label {
   padding: var(--space-4) var(--space-6) var(--space-2);
   font-family: var(--font-mono);
