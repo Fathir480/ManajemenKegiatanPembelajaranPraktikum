@@ -24,9 +24,8 @@ const navItems = {
   ],
   dosen: [
     { to: '/dosen', label: 'Dashboard', end: true },
-    { to: '/dosen/nilai', label: 'Grade Input' },
-    { to: '/dosen/rekap', label: 'Grade Recap' },
-    { to: '/dosen/materi', label: 'Upload Material' },
+    { to: '/dosen/materi', label: 'Materials' },
+    { to: '/dosen/nilai', label: 'Grades' },
     { to: '/dosen/ajuan', label: 'Schedule Requests' },
   ],
   praktikan: [
