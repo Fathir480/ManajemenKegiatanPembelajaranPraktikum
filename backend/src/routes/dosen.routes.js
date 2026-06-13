@@ -38,7 +38,7 @@ router.get('/matkul', async (req, res) => {
     const dosen = await prisma.dosen.findUnique({ where: { userId: req.user.id } });
     if (!dosen) return res.status(404).json({ message: 'Data dosen tidak ditemukan.' });
 
-    const pengampu = await prisma.pengampu.findMany({
+    const pengampu = await prisma.dosenMataKuliah.findMany({
       where: { dosenId: dosen.id },
       include: { mataKuliah: true },
     });
@@ -135,7 +135,7 @@ router.get('/kelas', async (req, res) => {
         OR: [
           { dosenId: dosen.id },
           { jadwalPraktikum: { some: { dosenId: dosen.id } } },
-          { mataKuliah: { pengampu: { some: { dosenId: dosen.id } } } }
+          { mataKuliah: { dosenMataKuliah: { some: { dosenId: dosen.id } } } }
         ]
       },
       include: {
@@ -301,7 +301,7 @@ router.post('/nilai/bulk', async (req, res) => {
 // POST upload materi
 router.post('/materi', upload.single('file'), async (req, res) => {
   try {
-    const { mataKuliahId, judul, deskripsi, tipe, semester } = req.body;
+    const { kelasId, judul, deskripsi, tipe, semester } = req.body;
     if (!req.file) return res.status(400).json({ message: 'File wajib diupload.' });
 
     const dosen = await prisma.dosen.findUnique({ where: { userId: req.user.id } });
@@ -309,7 +309,7 @@ router.post('/materi', upload.single('file'), async (req, res) => {
 
     const materi = await prisma.materi.create({
       data: {
-        mataKuliahId: parseInt(mataKuliahId),
+        kelasId: parseInt(kelasId),
         dosenId: dosen.id,
         judul, deskripsi,
         tipe: tipe || 'materi',
@@ -325,11 +325,11 @@ router.post('/materi', upload.single('file'), async (req, res) => {
   }
 });
 
-// GET semua materi per mata kuliah
-router.get('/materi/:mataKuliahId', async (req, res) => {
+// GET semua materi per kelas
+router.get('/materi/:kelasId', async (req, res) => {
   try {
     const materi = await prisma.materi.findMany({
-      where: { mataKuliahId: parseInt(req.params.mataKuliahId) },
+      where: { kelasId: parseInt(req.params.kelasId) },
       orderBy: { createdAt: 'desc' },
     });
     res.json(materi);
@@ -392,7 +392,7 @@ router.get('/jadwal', async (req, res) => {
     const dosen = await prisma.dosen.findUnique({ where: { userId: req.user.id } });
     if (!dosen) return res.status(404).json({ message: 'Data dosen tidak ditemukan.' });
 
-    const pengampu = await prisma.pengampu.findMany({
+    const pengampu = await prisma.dosenMataKuliah.findMany({
       where: { dosenId: dosen.id },
       select: { mataKuliahId: true },
     });

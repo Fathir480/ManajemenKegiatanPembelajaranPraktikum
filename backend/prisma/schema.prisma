@@ -102,7 +102,6 @@ model MataKuliah {
 
   jadwalPraktikum JadwalPraktikum[]
   komponenNilai   KomponenNilai[]
-  materi          Materi[]
   rekapNilai      RekapNilaiAkhir[]
   kelas           Kelas[]
   dosenMataKuliah DosenMataKuliah[]
@@ -323,7 +322,7 @@ model RekapNilaiAkhir {
 
 model Materi {
   id           Int        @id @default(autoincrement()) @db.UnsignedInt
-  mataKuliahId Int        @map("mata_kuliah_id") @db.UnsignedInt
+  kelasId      Int        @map("kelas_id") @db.UnsignedInt
   dosenId      Int        @map("dosen_id") @db.UnsignedInt
   judul        String     @db.VarChar(200)
   deskripsi    String?    @db.Text
@@ -334,7 +333,7 @@ model Materi {
   publishedAt  DateTime?  @map("published_at")
   createdAt    DateTime   @default(now()) @map("created_at")
 
-  mataKuliah MataKuliah @relation(fields: [mataKuliahId], references: [id])
+  kelas      Kelas      @relation(fields: [kelasId], references: [id], onDelete: Cascade)
   dosen      Dosen      @relation(fields: [dosenId], references: [id])
 
   @@map("materi")
@@ -374,6 +373,7 @@ model Kelas {
   dosen           Dosen?            @relation(fields: [dosenId], references: [id], onDelete: SetNull)
   pesertaKelas    PesertaKelas[]
   jadwalPraktikum JadwalPraktikum[]
+  materi          Materi[]
 
   @@unique([namaKelas, mataKuliahId])
   @@map("kelas")

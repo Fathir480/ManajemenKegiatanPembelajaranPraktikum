@@ -1,55 +1,43 @@
-import { useState, useEffect } from 'react';
-import DashboardLayout from '../../../components/DashboardLayout';
+import React, { useState, useEffect } from 'react';
 import { api } from '../../../lib/api';
-import './materi.css';
-
-const typeMap = {
-  'materi': 'Lecture Slide',
-  'modul': 'Module Book',
-  'referensi': 'Reference',
-  'lainnya': 'Other'
-};
+import DashboardLayout from '../../../components/DashboardLayout';
 
 export default function DosenMateri() {
-  const [matkul, setMatkul] = useState([]);
-  const [selectedMatkulId, setSelectedMatkulId] = useState('');
+  const [kelas, setKelas] = useState([]);
+  const [selectedKelasId, setSelectedKelasId] = useState('');
   const [materi, setMateri] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Form State
-  const [judul, setJudul] = useState('');
+  // Form states
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [deskripsi, setDeskripsi] = useState('');
-  const [tipe, setTipe] = useState('materi'); // 'modul' | 'materi' | 'referensi' | 'lainnya'
-  const [semester, setSemester] = useState('2024/2025 Genap');
   const [file, setFile] = useState(null);
 
-  const fetchMatkul = async () => {
+  const fetchKelas = async () => {
     try {
-      const data = await api.get('/dosen/matkul');
-      setMatkul(data);
-      if (data.length > 0) setSelectedMatkulId(data[0].id);
+      const data = await api.get('/dosen/kelas');
+      if (Array.isArray(data)) {
+        setKelas(data);
+      } else {
+        throw new Error('Data format invalid');
+      }
     } catch (err) {
-      setError('Failed to fetch course list');
+      setError('Failed to fetch class list');
     }
   };
 
-  useEffect(() => {
-    fetchMatkul();
-  }, []);
-
-  const fetchMateri = async () => {
-    if (!selectedMatkulId) {
-      setMateri([]);
-      return;
-    }
+  const fetchMateri = async (kelasId) => {
     try {
       setLoading(true);
       setError('');
-      const data = await api.get(`/dosen/materi/${selectedMatkulId}`);
-      setMateri(data);
+      const data = await api.get(`/dosen/materi/${kelasId}`);
+      if (Array.isArray(data)) {
+        setMateri(data);
+      } else {
+        setMateri([]);
+      }
     } catch (err) {
       setError('Failed to load materials list');
     } finally {
@@ -58,15 +46,25 @@ export default function DosenMateri() {
   };
 
   useEffect(() => {
-    fetchMateri();
-  }, [selectedMatkulId]);
+    fetchKelas();
+  }, []);
+
+  useEffect(() => {
+    if (selectedKelasId) {
+      fetchMateri(selectedKelasId);
+    } else {
+      setMateri([]);
+    }
+  }, [selectedKelasId]);
 
   const handleOpenAddModal = () => {
-    setJudul('');
+    if (!selectedKelasId) {
+      setError('Silakan pilih kelas terlebih dahulu sebelum mengupload materi.');
+      return;
+    }
     setDeskripsi('');
-    setTipe('materi');
-    setSemester('2024/2025 Genap');
     setFile(null);
+    setError('');
     setIsModalOpen(true);
   };
 
@@ -86,17 +84,17 @@ export default function DosenMateri() {
 
     try {
       const formData = new FormData();
-      formData.append('mataKuliahId', selectedMatkulId);
-      formData.append('judul', judul);
-      formData.append('deskripsi', deskripsi);
-      formData.append('tipe', tipe);
-      formData.append('semester', semester);
       formData.append('file', file);
+      formData.append('kelasId', selectedKelasId);
+      formData.append('judul', file.name);
+      formData.append('deskripsi', deskripsi);
+      formData.append('tipe', 'materi');
+      formData.append('semester', 'Berjalan');
 
       await api.postForm('/dosen/materi', formData);
       setSuccess('Material uploaded successfully!');
       setIsModalOpen(false);
-      fetchMateri();
+      fetchMateri(selectedKelasId);
     } catch (err) {
       setError(err.message || 'Failed to upload material');
     }
@@ -109,9 +107,9 @@ export default function DosenMateri() {
     try {
       await api.delete(`/dosen/materi/${id}`);
       setSuccess('Material deleted successfully!');
-      fetchMateri();
+      fetchMateri(selectedKelasId);
     } catch (err) {
-      setError(err.message || 'Failed to delete material');
+      setError('Failed to delete material');
     }
   };
 
@@ -122,31 +120,32 @@ export default function DosenMateri() {
           <h1 style={{ fontSize: '28px' }}>Practicum Materials & Modules</h1>
           <p className="page-subtitle">Upload, distribute, and manage practicum guideline documents for students</p>
         </div>
-        <button className="btn btn-primary" onClick={handleOpenAddModal} disabled={!selectedMatkulId}>
+        <button className="btn btn-primary" onClick={handleOpenAddModal} disabled={!selectedKelasId}>
           Upload New Document
         </button>
       </div>
 
       {success && <div className="alert alert-success mb-6">{success}</div>}
       {error && <div className="alert alert-error mb-6">{error}</div>}
-      {matkul.length === 0 && (
+
+      {kelas.length === 0 && !error && (
         <div className="alert alert-error mb-6">
-          You are not assigned as a lecturer for any courses in this semester. Please assign this lecturer to a course via the Admin panel first.
+          You are not assigned as a lecturer for any classes in this semester. Please assign this lecturer to a class via the Admin panel first.
         </div>
       )}
 
       <div className="card mb-6">
-        <div className="form-group" style={{ maxWidth: '320px', marginBottom: '24px' }}>
-          <label className="form-label">Course</label>
+        <div className="form-group" style={{ maxWidth: '400px', marginBottom: '24px' }}>
+          <label className="form-label">Pilih Kelas / Mata Kuliah</label>
           <select
             className="form-select"
-            value={selectedMatkulId}
-            onChange={(e) => setSelectedMatkulId(e.target.value)}
+            value={selectedKelasId}
+            onChange={(e) => setSelectedKelasId(e.target.value)}
           >
-            <option value="">-- Select Course --</option>
-            {matkul.map(m => (
-              <option key={m.id} value={m.id}>
-                {m.kode} - {m.nama}
+            <option value="">-- Pilih Kelas --</option>
+            {kelas.map(k => (
+              <option key={k.id} value={k.id}>
+                {k.namaKelas} - {k.mataKuliah?.nama || 'Unknown Course'}
               </option>
             ))}
           </select>
@@ -154,54 +153,74 @@ export default function DosenMateri() {
 
         {loading ? (
           <div className="flex-center" style={{ minHeight: '200px' }}><div className="spinner" /></div>
-        ) : !selectedMatkulId ? (
+        ) : !selectedKelasId ? (
           <div className="empty-state">
-            <p>Please select a course first</p>
+            <p>Silakan pilih kelas terlebih dahulu</p>
           </div>
         ) : materi.length === 0 ? (
           <div className="empty-state">
-            <p>No practicum materials uploaded yet</p>
+            <div className="empty-state-icon"></div>
+            <p>Belum ada file materi yang diupload untuk kelas ini.</p>
           </div>
         ) : (
-          <div className="materi-list">
-            {materi.map(m => (
-              <div className="materi-item" key={m.id}>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                  <div>
-                    <div className="flex gap-2" style={{ alignItems: 'center', marginBottom: '4px' }}>
-                      <strong style={{ fontSize: '16px', color: 'var(--ink)' }}>{m.judul}</strong>
-                      <span className="badge badge-status-active" style={{ fontSize: '10px' }}>
-                        {typeMap[m.tipe] || m.tipe}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: '13px', color: 'var(--body)', marginBottom: '4px' }}>
-                      {m.deskripsi || 'No description'}
-                    </p>
-                    <div className="text-mono" style={{ fontSize: '11px', color: 'var(--muted)' }}>
-                      Size: {m.ukuranKb} KB | Date: {new Date(m.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </div>
-                  </div>
-                </div>
-                
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <a 
-                    href={`http://localhost:5000${m.filePath}`} 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="btn btn-outline btn-sm"
-                    download
-                  >
-                    Download File
-                  </a>
-                  <button
-                    onClick={() => handleDeleteMateri(m.id)}
-                    className="btn btn-danger btn-sm"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>File Information</th>
+                  <th>Description</th>
+                  <th>Size</th>
+                  <th>Upload Date</th>
+                  <th style={{ width: '120px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {materi.map(m => (
+                  <tr key={m.id}>
+                    <td>
+                      <div className="flex gap-2" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--primary)' }}>
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                          <polyline points="14 2 14 8 20 8"></polyline>
+                          <line x1="16" y1="13" x2="8" y2="13"></line>
+                          <line x1="16" y1="17" x2="8" y2="17"></line>
+                          <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        <strong>{m.judul}</strong>
+                      </div>
+                    </td>
+                    <td>{m.deskripsi || '-'}</td>
+                    <td className="text-mono">{m.ukuranKb} KB</td>
+                    <td className="text-mono">{new Date(m.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                    <td>
+                      <div className="flex gap-3 justify-end" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <a 
+                          href={`http://localhost:5000${m.filePath}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="action-icon-btn" 
+                          title="Download File"
+                          download
+                          style={{ color: 'var(--primary)' }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                          </svg>
+                        </a>
+                        <button className="action-icon-btn action-delete" onClick={() => handleDeleteMateri(m.id)} title="Delete File">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -211,7 +230,7 @@ export default function DosenMateri() {
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: '500px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Upload New Material</h3>
+              <h3 className="modal-title">Upload File Materi</h3>
               <button className="modal-close" onClick={() => setIsModalOpen(false)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -219,74 +238,43 @@ export default function DosenMateri() {
                 </svg>
               </button>
             </div>
-            
-            <form onSubmit={handleFormSubmit} className="login-form">
-              <div className="form-group">
-                <label className="form-label">Material Title</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  required 
-                  placeholder="Example: Module Session 1 - Introduction to HTML"
-                  value={judul} 
-                  onChange={(e) => setJudul(e.target.value)} 
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Description</label>
-                <textarea 
-                  className="form-textarea" 
-                  placeholder="Brief explanation about the material..."
-                  value={deskripsi} 
-                  onChange={(e) => setDeskripsi(e.target.value)} 
-                />
-              </div>
-
-              <div className="grid-2">
-                <div className="form-group">
-                  <label className="form-label">Document Type</label>
-                  <select 
-                    className="form-select" 
-                    value={tipe} 
-                    onChange={(e) => setTipe(e.target.value)}
-                  >
-                    <option value="materi">Lecture Slide</option>
-                    <option value="modul">Module Book</option>
-                    <option value="referensi">Reference</option>
-                    <option value="lainnya">Other</option>
-                  </select>
+            <form onSubmit={handleFormSubmit}>
+              <div className="modal-body" style={{ paddingBottom: '24px' }}>
+                <div className="form-group mb-4">
+                  <label className="form-label">File Document (PDF, DOCX, PPTX, XLSX)</label>
+                  <div style={{ position: 'relative', marginTop: '12px' }}>
+                    <input
+                      type="file"
+                      id="materi-file-upload"
+                      onChange={handleFileChange}
+                      accept=".pdf,.docx,.pptx,.xlsx"
+                      required
+                      style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 16px', background: 'var(--surface-soft)', border: '1px solid var(--hairline-strong)', borderRadius: 'var(--radius-md)', transition: 'border-color var(--transition)' }}>
+                      <div className="btn" style={{ pointerEvents: 'none', background: 'var(--surface-hover)', color: 'var(--text-main)', border: '1px solid var(--hairline)', padding: '6px 16px', fontSize: '13px' }}>
+                        Browse File
+                      </div>
+                      <span style={{ color: file ? 'var(--text-main)' : 'var(--muted)', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {file ? file.name : 'No file chosen...'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Semester</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    required 
-                    value={semester} 
-                    onChange={(e) => setSemester(e.target.value)} 
+                <div className="form-group" style={{ marginBottom: '24px' }}>
+                  <label className="form-label">Description (Optional)</label>
+                  <textarea
+                    className="form-textarea"
+                    value={deskripsi}
+                    onChange={e => setDeskripsi(e.target.value)}
+                    placeholder="Enter brief description..."
+                    rows={4}
                   />
                 </div>
               </div>
-
-              <div className="form-group">
-                <label className="form-label">Select Document File (.pdf, .docx, .pptx, .xlsx - Max 20MB)</label>
-                <input 
-                  type="file" 
-                  className="form-input" 
-                  required 
-                  accept=".pdf,.docx,.pptx,.xlsx"
-                  onChange={handleFileChange} 
-                />
-              </div>
-
-              <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Upload File
-                </button>
+              <div className="modal-footer" style={{ paddingTop: '24px', borderTop: '1px solid var(--hairline-strong)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)} style={{ border: 'none', background: 'transparent' }}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={!file}>Upload File</button>
               </div>
             </form>
           </div>

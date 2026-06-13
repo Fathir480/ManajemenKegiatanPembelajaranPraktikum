@@ -21,12 +21,12 @@ const navItems = {
     { to: '/asisten/absensi', label: 'Attendance & Scanner' },
     { to: '/asisten/nilai', label: 'Grade Input' },
     { to: '/asisten/ajuan', label: 'Schedule Requests' },
-    { to: '/asisten/materi', label: 'Materials' },
+    { to: '/asisten/materi', label: 'Materi & Modul' },
   ],
   dosen: [
     { to: '/dosen', label: 'Dashboard', end: true },
     { to: '/dosen/absensi', label: 'Attendance' },
-    { to: '/dosen/materi', label: 'Materials' },
+    { to: '/dosen/materi', label: 'Materi & Modul' },
     { to: '/dosen/nilai', label: 'Grades' },
     { to: '/dosen/ajuan', label: 'Schedule Requests' },
   ],
@@ -37,7 +37,7 @@ const navItems = {
     { to: '/praktikan/jadwal', label: 'Schedules' },
     { to: '/praktikan/absensi', label: 'Attendance' },
     { to: '/praktikan/nilai', label: 'Grades' },
-    { to: '/praktikan/materi', label: 'Materials' },
+    { to: '/praktikan/materi', label: 'Materi & Modul' },
   ],
 };
 
