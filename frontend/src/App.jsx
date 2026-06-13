@@ -31,6 +31,7 @@ import AsistenMateri from './pages/asisten/materi';
 import DosenNilai from './pages/dosen/nilai';
 import DosenMateri from './pages/dosen/materi';
 import DosenAjuan from './pages/dosen/ajuan';
+import DosenAbsensi from './pages/dosen/absensi';
 
 // Praktikan Subpages
 import PraktikanQR from './pages/praktikan/qr';
@@ -129,6 +130,9 @@ export default function App() {
         {/* Dosen */}
         <Route path="/dosen" element={
           <PrivateRoute allowedRoles={['dosen']}><DosenDashboard /></PrivateRoute>
+        } />
+        <Route path="/dosen/absensi" element={
+          <PrivateRoute allowedRoles={['dosen']}><DosenAbsensi /></PrivateRoute>
         } />
         <Route path="/dosen/nilai" element={
           <PrivateRoute allowedRoles={['dosen']}><DosenNilai /></PrivateRoute>

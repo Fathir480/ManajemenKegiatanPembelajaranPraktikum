@@ -25,6 +25,7 @@ const navItems = {
   ],
   dosen: [
     { to: '/dosen', label: 'Dashboard', end: true },
+    { to: '/dosen/absensi', label: 'Attendance' },
     { to: '/dosen/materi', label: 'Materials' },
     { to: '/dosen/nilai', label: 'Grades' },
     { to: '/dosen/ajuan', label: 'Schedule Requests' },

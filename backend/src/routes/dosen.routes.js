@@ -48,6 +48,69 @@ router.get('/matkul', async (req, res) => {
   }
 });
 
+// GET absensi kelas (read-only matrix)
+router.get('/absensi/kelas/:kelasId', async (req, res) => {
+  try {
+    const kelasId = parseInt(req.params.kelasId);
+    
+    // Ambil detail kelas
+    const kelas = await prisma.kelas.findUnique({
+      where: { id: kelasId },
+      include: { mataKuliah: true }
+    });
+    if (!kelas) {
+      return res.status(404).json({ message: 'Kelas tidak ditemukan.' });
+    }
+
+    // Ambil semua mahasiswa di kelas ini
+    const peserta = await prisma.pesertaKelas.findMany({
+      where: { kelasId },
+      include: {
+        mahasiswa: {
+          include: { user: { select: { nama: true } } }
+        }
+      },
+      orderBy: { mahasiswa: { stambuk: 'asc' } }
+    });
+
+    // Ambil semua sesi praktikum yang berkaitan dengan kelas ini
+    const sesi = await prisma.sesiPraktikum.findMany({
+      where: {
+        jadwal: { kelasId }
+      },
+      orderBy: [
+        { pertemuanKe: 'asc' },
+        { tanggal: 'asc' }
+      ]
+    });
+
+    const sesiIds = sesi.map(s => s.id);
+
+    // Ambil data absensi untuk sesi-sesi tersebut
+    let absensi = [];
+    if (sesiIds.length > 0) {
+      absensi = await prisma.absensi.findMany({
+        where: {
+          sesiId: { in: sesiIds }
+        }
+      });
+    }
+
+    res.json({
+      kelas,
+      students: peserta.map(p => ({
+        id: p.mahasiswa.id,
+        nama: p.mahasiswa.user.nama,
+        stambuk: p.mahasiswa.stambuk
+      })),
+      sessions: sesi,
+      attendance: absensi
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil data absensi.', error: error.message });
+  }
+});
+
 // GET semua komponen nilai per mata kuliah
 router.get('/komponen/:mataKuliahId', async (req, res) => {
   try {
