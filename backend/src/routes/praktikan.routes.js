@@ -97,7 +97,33 @@ router.get('/absensi', async (req, res) => {
   }
 });
 
-// GET nilai mahasiswa
+// GET kelas yang di-enroll mahasiswa
+router.get('/enrolled-classes', async (req, res) => {
+  try {
+    const mahasiswa = await prisma.mahasiswa.findUnique({
+      where: { userId: req.user.id },
+    });
+    if (!mahasiswa) {
+      return res.status(404).json({ message: 'Data mahasiswa tidak ditemukan.' });
+    }
+
+    const enrolledClasses = await prisma.pesertaKelas.findMany({
+      where: { mahasiswaId: mahasiswa.id },
+      include: {
+        kelas: {
+          include: { mataKuliah: true }
+        }
+      }
+    });
+    
+    const classes = enrolledClasses.map(pk => pk.kelas);
+    res.json(classes);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil kelas yang diikuti.' });
+  }
+});
+
+// GET semua nilai mahasiswa (OLD - kept for backwards compatibility if needed elsewhere)
 router.get('/nilai', async (req, res) => {
   try {
     const mahasiswa = await prisma.mahasiswa.findUnique({ where: { userId: req.user.id } });
@@ -121,6 +147,99 @@ router.get('/nilai', async (req, res) => {
     res.json({ nilaiDetail: nilai, rekapAkhir });
   } catch (error) {
     res.status(500).json({ message: 'Gagal mengambil nilai.' });
+  }
+});
+
+// GET matriks nilai mahasiswa untuk satu kelas
+router.get('/nilai/kelas/:kelasId', async (req, res) => {
+  try {
+    const kelasId = parseInt(req.params.kelasId);
+    
+    const mahasiswa = await prisma.mahasiswa.findUnique({
+      where: { userId: req.user.id },
+      include: { user: { select: { nama: true } } }
+    });
+    if (!mahasiswa) return res.status(404).json({ message: 'Mahasiswa tidak ditemukan.' });
+
+    const kelas = await prisma.kelas.findUnique({
+      where: { id: kelasId },
+      include: { mataKuliah: true }
+    });
+    if (!kelas) return res.status(404).json({ message: 'Kelas tidak ditemukan.' });
+
+    // Ambil komponen nilai
+    let komponen = await prisma.komponenNilai.findMany({
+      where: { mataKuliahId: kelas.mataKuliahId },
+      orderBy: { id: 'asc' }
+    });
+
+    if (komponen.length === 0) {
+      const defaultComponents = [
+        { nama: 'Praktikum 1', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 2', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 3', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 4', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 5', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 6', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Asistensi 1', bobot: 5, kategori: 'asistensi', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Asistensi 2', bobot: 5, kategori: 'asistensi', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Asistensi 3', bobot: 5, kategori: 'asistensi', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'UTS', bobot: 25, kategori: 'uts', diinputOleh: 'dosen', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'UAS', bobot: 30, kategori: 'uas', diinputOleh: 'dosen', mataKuliahId: kelas.mataKuliahId }
+      ];
+      await prisma.komponenNilai.createMany({ data: defaultComponents });
+      komponen = await prisma.komponenNilai.findMany({
+        where: { mataKuliahId: kelas.mataKuliahId },
+        orderBy: { id: 'asc' }
+      });
+    }
+
+    const peserta = await prisma.pesertaKelas.findMany({
+      where: { kelasId },
+      include: {
+        mahasiswa: {
+          include: { user: { select: { nama: true } } }
+        }
+      },
+      orderBy: { mahasiswa: { stambuk: 'asc' } }
+    });
+
+    const mahasiswaIds = peserta.map(p => p.mahasiswaId);
+
+    const nilai = await prisma.nilai.findMany({
+      where: {
+        mahasiswaId: { in: mahasiswaIds },
+        komponen: { mataKuliahId: kelas.mataKuliahId }
+      },
+      include: {
+        komponen: { select: { nama: true, kategori: true } }
+      }
+    });
+
+    const formattedStudents = peserta.map(p => {
+      const mhs = p.mahasiswa;
+      const nilaiMhs = nilai.filter(n => n.mahasiswaId === mhs.id);
+      
+      return {
+        id: mhs.id,
+        stambuk: mhs.stambuk,
+        nama: mhs.user.nama,
+        nilai: nilaiMhs.map(n => ({
+          komponenId: n.komponenId,
+          nilai: n.nilai,
+          kategori: n.komponen.kategori,
+          namaKomponen: n.komponen.nama
+        }))
+      };
+    });
+
+    res.json({
+      kelas,
+      komponen,
+      students: formattedStudents
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil data nilai kelas.' });
   }
 });
 

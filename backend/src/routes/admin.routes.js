@@ -1638,7 +1638,8 @@ router.get('/kelas/:id/peserta', async (req, res) => {
         mahasiswa: {
           include: { user: { select: { nama: true } } }
         }
-      }
+      },
+      orderBy: { mahasiswa: { stambuk: 'asc' } }
     });
     res.json(peserta);
   } catch (error) {
@@ -2030,7 +2031,8 @@ router.get('/nilai/kelas/:kelasId', async (req, res) => {
             user: { select: { nama: true } }
           }
         }
-      }
+      },
+      orderBy: { mahasiswa: { stambuk: 'asc' } }
     });
 
     // 4. Ambil semua nilai untuk peserta kelas ini pada mata kuliah ini

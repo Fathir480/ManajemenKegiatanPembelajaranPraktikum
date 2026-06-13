@@ -199,7 +199,8 @@ router.get('/nilai/kelas/:kelasId', async (req, res) => {
             user: { select: { nama: true } }
           }
         }
-      }
+      },
+      orderBy: { mahasiswa: { stambuk: 'asc' } }
     });
 
     const mahasiswaIds = peserta.map(p => p.mahasiswaId);

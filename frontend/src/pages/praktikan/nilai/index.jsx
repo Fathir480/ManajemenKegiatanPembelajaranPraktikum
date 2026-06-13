@@ -4,153 +4,246 @@ import { api } from '../../../lib/api';
 import './nilai.css';
 
 export default function PraktikanNilai() {
-  const [dataNilai, setDataNilai] = useState({ nilaiDetail: [], rekapAkhir: [] });
-  const [loading, setLoading] = useState(true);
+  const [classes, setClasses] = useState([]);
+  const [selectedKelasId, setSelectedKelasId] = useState('');
+  const [students, setStudents] = useState([]);
+  const [komponen, setKomponen] = useState([]);
+  
+  const [loading, setLoading] = useState(false);
+  const [loadingClasses, setLoadingClasses] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchNilai = async () => {
-      try {
-        setLoading(true);
-        const data = await api.get('/praktikan/nilai');
-        setDataNilai(data);
-      } catch (err) {
-        setError('Failed to load your gradebook recap');
-      } finally {
-        setLoading(false);
+  // Fixed layout columns
+  const fixedColumns = [
+    { key: 'p1', label: 'P 1', type: 'praktikum', index: 1 },
+    { key: 'p2', label: 'P 2', type: 'praktikum', index: 2 },
+    { key: 'p3', label: 'P 3', type: 'praktikum', index: 3 },
+    { key: 'p4', label: 'P 4', type: 'praktikum', index: 4 },
+    { key: 'p5', label: 'P 5', type: 'praktikum', index: 5 },
+    { key: 'p6', label: 'P 6', type: 'praktikum', index: 6 },
+    { key: 'a1', label: 'A 1', type: 'asistensi', index: 1 },
+    { key: 'a2', label: 'A 2', type: 'asistensi', index: 2 },
+    { key: 'a3', label: 'A 3', type: 'asistensi', index: 3 },
+    { key: 'uts', label: 'UTS', type: 'uts' },
+    { key: 'uas', label: 'UAS', type: 'uas' },
+    { key: 'final', label: 'N. Akhir', type: 'final' }
+  ];
+
+  const fetchClasses = async () => {
+    try {
+      setLoadingClasses(true);
+      const data = await api.get('/praktikan/enrolled-classes');
+      setClasses(data);
+      if (data.length > 0) {
+        setSelectedKelasId(String(data[0].id));
       }
-    };
-    fetchNilai();
+    } catch (err) {
+      setError(err.message || 'Failed to load your enrolled classes.');
+    } finally {
+      setLoadingClasses(false);
+    }
+  };
+
+  const fetchNilaiData = async (kelasId) => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await api.get(`/praktikan/nilai/kelas/${kelasId}`);
+      setStudents(data.students || []);
+      setKomponen(data.komponen || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load class grades data.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClasses();
   }, []);
+
+  useEffect(() => {
+    if (selectedKelasId) {
+      fetchNilaiData(selectedKelasId);
+    } else {
+      setStudents([]);
+      setKomponen([]);
+    }
+  }, [selectedKelasId]);
+
+  const handleKelasChange = (e) => {
+    setSelectedKelasId(e.target.value);
+  };
+
+  const getTargetKomponen = (col) => {
+    const kompTerkait = komponen.filter(k => k.kategori === col.type);
+    kompTerkait.sort((a, b) => a.id - b.id);
+    if (col.index && col.index > kompTerkait.length) return null;
+    return col.index ? kompTerkait[col.index - 1] : kompTerkait[0];
+  };
+
+  const getNilaiForColumn = (student, col) => {
+    if (col.type === 'final') return calculateFinalGrade(student);
+    
+    const targetKomponen = getTargetKomponen(col);
+    if (!targetKomponen) return null;
+
+    const nilaiRecord = student.nilai.find(n => n.komponenId === targetKomponen.id);
+    return nilaiRecord && nilaiRecord.nilai !== null ? Number(nilaiRecord.nilai) : '';
+  };
+
+  const calculateFinalGrade = (student) => {
+    if (komponen.length === 0) return 0;
+    
+    // Attempt to use rekapAkhir from backend if already available and accurate
+    // but calculating dynamically is safer for display just like DosenNilai does
+    
+    const categoryStats = {};
+    komponen.forEach(k => {
+      if (!categoryStats[k.kategori]) categoryStats[k.kategori] = { totalBobot: 0, filledScores: [] };
+      categoryStats[k.kategori].totalBobot += parseFloat(k.bobot);
+
+      const n = student.nilai.find(nl => nl.komponenId === k.id);
+      let scoreVal = (n && n.nilai !== null && n.nilai !== undefined) ? n.nilai : '';
+
+      if (scoreVal !== '' && scoreVal !== null) {
+        categoryStats[k.kategori].filledScores.push(parseFloat(scoreVal));
+      }
+    });
+
+    let totalNilai = 0;
+    let totalBobotAktif = 0;
+
+    Object.values(categoryStats).forEach(stat => {
+      let averageScore = 0;
+      if (stat.filledScores.length > 0) {
+        const sum = stat.filledScores.reduce((a, b) => a + b, 0);
+        averageScore = sum / stat.filledScores.length;
+      }
+      totalNilai += (averageScore * (stat.totalBobot / 100));
+      totalBobotAktif += stat.totalBobot;
+    });
+
+    if (totalBobotAktif === 0) return 0;
+    const finalScore = (totalNilai / (totalBobotAktif / 100));
+    return finalScore.toFixed(2);
+  };
 
   return (
     <DashboardLayout title="My Gradebook">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 style={{ fontSize: '28px' }}>Gradebook</h1>
-          <p className="page-subtitle">Monitor all achievements in tasks, exams, lab assistance, and final grades</p>
+          <h1 style={{ fontSize: '28px' }}>Gradebook Matrix</h1>
+          <p className="page-subtitle">View your detailed grades for each enrolled class</p>
         </div>
       </div>
 
       {error && <div className="alert alert-error mb-6">{error}</div>}
 
-      {loading ? (
-        <div className="flex-center" style={{ minHeight: '200px' }}><div className="spinner" /></div>
-      ) : (
-        <div>
-          {/* Nilai Akhir Summary */}
-          <div className="card mb-8">
-            <div className="card-header">
-              <h3 className="card-title">Final Course Grade Summary</h3>
-            </div>
-            {dataNilai.rekapAkhir.length === 0 ? (
-              <div className="empty-state">
-                <p>No final grades published for this semester yet</p>
-              </div>
+      <div className="card mb-6">
+        <div className="absensi-controls" style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
+          <div className="form-group mb-0" style={{ minWidth: '320px', flexGrow: 0 }}>
+            <label className="form-label text-mono" style={{ fontSize: '11px', textTransform: 'uppercase', marginBottom: '6px' }}>Pilih Kelas Praktikum</label>
+            {loadingClasses ? (
+              <div className="text-muted text-mono" style={{ fontSize: '12px' }}>Loading your classes...</div>
+            ) : classes.length === 0 ? (
+              <div className="text-muted text-mono" style={{ fontSize: '12px', color: 'var(--error)' }}>You are not enrolled in any classes.</div>
             ) : (
-              <div className="table-wrapper">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Code</th>
-                      <th>Course / Practicum</th>
-                      <th>Practicum</th>
-                      <th>Assistance</th>
-                      <th>Midterm</th>
-                      <th>Final Exam</th>
-                      <th>Final Grade</th>
-                      <th>Letter Grade</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dataNilai.rekapAkhir.map(r => (
-                      <tr key={r.id}>
-                        <td className="text-mono">{r.mataKuliah?.kode}</td>
-                        <td><strong>{r.mataKuliah?.nama}</strong><br /><span className="text-muted text-mono" style={{ fontSize: '11px' }}>Semester: {r.semester}</span></td>
-                        <td className="text-mono">{r.nilaiPraktikum !== null ? Number(r.nilaiPraktikum).toFixed(1) : '-'}</td>
-                        <td className="text-mono">{r.nilaiAsistensi !== null ? Number(r.nilaiAsistensi).toFixed(1) : '-'}</td>
-                        <td className="text-mono">{r.nilaiUts !== null ? Number(r.nilaiUts).toFixed(1) : '-'}</td>
-                        <td className="text-mono">{r.nilaiUas !== null ? Number(r.nilaiUas).toFixed(1) : '-'}</td>
-                        <td>
-                          <strong className="text-mono" style={{ color: 'var(--pacific-blue-dark)', fontSize: '15px' }}>
-                            {r.nilaiAkhir !== null ? Number(r.nilaiAkhir).toFixed(2) : '-'}
-                          </strong>
-                        </td>
-                        <td>
-                          <span className={`badge ${['A', 'A-', 'B+', 'B'].includes(r.grade) ? 'badge-status-active' : 'badge-status-inactive'}`} style={{ fontWeight: '600', padding: '4px 10px' }}>
-                            {r.grade || 'E'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Rincian Komponen Nilai */}
-          <div className="nilai-section-title">Detailed Grade Log</div>
-          
-          <div className="card">
-            {dataNilai.nilaiDetail.length === 0 ? (
-              <div className="empty-state">
-                <p>No detailed task or exam grades entered by assistants/lecturers yet</p>
-              </div>
-            ) : (
-              <div className="table-wrapper">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Course</th>
-                      <th>Grading Component</th>
-                      <th>Weight</th>
-                      <th>Grade Obtained</th>
-                      <th>Instructor Notes</th>
-                      <th>Input Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dataNilai.nilaiDetail.map(n => {
-                      const tgl = new Date(n.diinputPada).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
-                      return (
-                        <tr key={n.id}>
-                          <td>
-                            <strong>{n.komponen?.mataKuliah?.nama}</strong>
-                            <br />
-                            <span className="text-mono" style={{ fontSize: '11px', color: 'var(--muted)' }}>
-                              {n.komponen?.mataKuliah?.kode}
-                            </span>
-                          </td>
-                          <td>
-                            <strong>{n.komponen?.nama}</strong>
-                            <br />
-                            <span className="badge badge-status-active" style={{ fontSize: '10px', textTransform: 'capitalize', marginTop: '4px' }}>
-                              {n.komponen?.kategori}
-                            </span>
-                          </td>
-                          <td className="text-mono">{n.komponen?.bobot}%</td>
-                          <td>
-                            <strong className="text-mono" style={{ fontSize: '15px' }}>
-                              {Number(n.nilai).toFixed(1)}
-                            </strong>
-                          </td>
-                          <td>
-                            <span style={{ fontSize: '13px', fontStyle: 'italic', color: 'var(--body)' }}>
-                              {n.catatan ? `"${n.catatan}"` : '-'}
-                            </span>
-                          </td>
-                          <td className="text-mono" style={{ fontSize: '12px' }}>{tgl}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <select 
+                className="form-select text-mono" 
+                value={selectedKelasId} 
+                onChange={handleKelasChange}
+                style={{ width: '100%', fontSize: '13px', textTransform: 'uppercase' }}
+              >
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.namaKelas} - {c.mataKuliah?.nama} ({c.mataKuliah?.kode})
+                  </option>
+                ))}
+              </select>
             )}
           </div>
         </div>
-      )}
+
+        {loading ? (
+          <div className="flex-center" style={{ minHeight: '300px', flexDirection: 'column', gap: '12px' }}>
+            <div className="spinner" />
+            <span className="text-muted text-mono">Compiling grade matrix...</span>
+          </div>
+        ) : !selectedKelasId ? (
+          <div className="empty-state" style={{ padding: '80px 0' }}>
+            <p>Please select a class from the dropdown list above.</p>
+          </div>
+        ) : komponen.length === 0 ? (
+          <div className="empty-state" style={{ padding: '80px 0', border: '2px dashed var(--hairline-strong)' }}>
+            <p className="mb-4">No grade components defined for this course.</p>
+          </div>
+        ) : students.length === 0 ? (
+          <div className="empty-state" style={{ padding: '80px 0' }}>
+            <p>Your grade data was not found for this class.</p>
+          </div>
+        ) : (
+          <div className="table-wrapper absensi-matrix-wrapper" style={{ overflowX: 'auto', marginTop: '16px' }}>
+            <table className="absensi-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ width: '260px', minWidth: '260px', textAlign: 'left', background: 'var(--surface-strong)', color: 'var(--ink)', position: 'sticky', left: 0, zIndex: 11 }}>
+                    Student Name / NIM
+                  </th>
+                  {fixedColumns.map(col => (
+                    <th key={col.key} style={{ minWidth: '60px', textAlign: 'center', background: 'var(--surface-soft)', color: 'var(--ink)' }}>
+                      <span className="text-mono" style={{ fontSize: '11px', fontWeight: 600 }}>
+                        {col.label}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {students.map(std => (
+                  <tr key={std.id}>
+                    <td className="student-profile-cell" style={{ position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 9, borderRight: '2px solid var(--hairline-strong)', verticalAlign: 'middle' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <strong className="text-ink" style={{ fontSize: '13px' }}>{std.nama}</strong>
+                        <span className="text-mono" style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
+                          {std.stambuk}
+                        </span>
+                      </div>
+                    </td>
+                    {fixedColumns.map(col => {
+                      const isNull = getTargetKomponen(col) === null && col.type !== 'final';
+                      if (isNull) {
+                        return (
+                          <td key={col.key} style={{ textAlign: 'center', verticalAlign: 'middle', padding: '10px 4px', color: 'var(--muted)', backgroundColor: 'var(--surface-soft)' }}>
+                            <span className="text-mono" style={{ fontSize: '12px' }}>-</span>
+                          </td>
+                        );
+                      }
+
+                      const val = getNilaiForColumn(std, col);
+
+                      if (col.type === 'final') {
+                        return (
+                          <td key={col.key} style={{ textAlign: 'center', verticalAlign: 'middle', padding: '10px 4px', color: 'var(--pacific-blue)', fontWeight: 'bold' }}>
+                            <span className="text-mono" style={{ fontSize: '12px' }}>{val}</span>
+                          </td>
+                        );
+                      }
+
+                      // All other columns are read-only for Praktikan
+                      return (
+                        <td key={col.key} style={{ textAlign: 'center', verticalAlign: 'middle', padding: '10px 4px', color: 'var(--ink)' }}>
+                          <span className="text-mono" style={{ fontSize: '13px' }}>{val !== '' ? val : '0'}</span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 }
