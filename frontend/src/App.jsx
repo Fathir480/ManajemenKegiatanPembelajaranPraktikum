@@ -21,7 +21,6 @@ import AdminNilai from './pages/admin/nilai';
 
 
 // Asisten Subpages
-import AsistenSesi from './pages/asisten/sesi';
 import AsistenAbsensi from './pages/asisten/absensi';
 import AsistenNilai from './pages/asisten/nilai';
 import AsistenMateri from './pages/asisten/materi';
@@ -110,8 +109,8 @@ export default function App() {
         <Route path="/asisten/dashboard" element={
           <PrivateRoute allowedRoles={['asisten']}><AsistenDashboard /></PrivateRoute>
         } />
-        <Route path="/asisten/sesi" element={
-          <PrivateRoute allowedRoles={['asisten']}><AsistenSesi /></PrivateRoute>
+        <Route path="/asisten/absensi" element={
+          <PrivateRoute allowedRoles={['asisten']}><AsistenAbsensi /></PrivateRoute>
         } />
         <Route path="/asisten/nilai" element={
           <PrivateRoute allowedRoles={['asisten']}><AsistenNilai /></PrivateRoute>

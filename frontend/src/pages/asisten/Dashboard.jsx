@@ -50,7 +50,7 @@ export default function AsistenDashboard() {
       <div className="card mb-6">
         <div className="card-header">
           <h3 className="card-title">Assigned Classes</h3>
-          <a href="/asisten/absensi" className="btn btn-primary btn-sm">Open Scanner</a>
+          <a href="/asisten/absensi" className="btn btn-primary btn-sm">Manage Attendance</a>
         </div>
         {jadwal.length === 0 ? (
           <div className="empty-state"><p>No classes assigned yet</p></div>
@@ -80,7 +80,7 @@ export default function AsistenDashboard() {
                     <td>{j.ruangan?.nama || '-'}</td>
                     <td>{j.pesertaJadwal?.length || 0} students</td>
                     <td>
-                      <a href="/asisten/sesi" className="btn btn-outline btn-sm">Open Session</a>
+                      <a href="/asisten/absensi" className="btn btn-outline btn-sm">Attendance</a>
                     </td>
                   </tr>
                 ))}
@@ -92,8 +92,7 @@ export default function AsistenDashboard() {
 
       <div className="grid-3">
         {[
-          { href: '/asisten/sesi', label: 'Open New Session', desc: 'Start practicum session' },
-          { href: '/asisten/absensi', label: 'Scan QR Attendance', desc: 'Record student attendance' },
+          { href: '/asisten/absensi', label: 'Manage Attendance', desc: 'Record and monitor student attendance' },
           { href: '/asisten/nilai', label: 'Grade Input', desc: 'Record assistant & report grades' },
         ].map(item => (
           <a key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--hairline)', textDecoration: 'none', transition: 'all var(--transition)', background: 'var(--surface)' }}

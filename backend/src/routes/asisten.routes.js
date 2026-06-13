@@ -261,6 +261,79 @@ router.post('/absensi/qr', async (req, res) => {
   }
 });
 
+// GET absensi kelas (matrix view)
+router.get('/absensi/kelas/:kelasId', async (req, res) => {
+  try {
+    const kelasId = parseInt(req.params.kelasId);
+    
+    const kelas = await prisma.kelas.findUnique({
+      where: { id: kelasId },
+      include: { mataKuliah: true }
+    });
+    if (!kelas) {
+      return res.status(404).json({ message: 'Kelas tidak ditemukan.' });
+    }
+
+    const peserta = await prisma.pesertaKelas.findMany({
+      where: { kelasId },
+      include: {
+        mahasiswa: {
+          include: { user: { select: { nama: true } } }
+        }
+      },
+      orderBy: { mahasiswa: { stambuk: 'asc' } }
+    });
+
+    const sesi = await prisma.sesiPraktikum.findMany({
+      where: {
+        jadwal: { kelasId }
+      },
+      orderBy: [
+        { pertemuanKe: 'asc' },
+        { tanggal: 'asc' }
+      ]
+    });
+
+    const sesiIds = sesi.map(s => s.id);
+
+    let absensi = [];
+    if (sesiIds.length > 0) {
+      absensi = await prisma.absensi.findMany({
+        where: {
+          sesiId: { in: sesiIds }
+        }
+      });
+    }
+
+    res.json({
+      kelas,
+      students: peserta.map(p => ({
+        id: p.mahasiswa.id,
+        nama: p.mahasiswa.user.nama,
+        stambuk: p.mahasiswa.stambuk
+      })),
+      sessions: sesi,
+      attendance: absensi
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil data absensi.', error: error.message });
+  }
+});
+
+// PUT update tanggal sesi
+router.put('/absensi/sesi/:id', async (req, res) => {
+  try {
+    const { tanggal } = req.body;
+    const updatedSesi = await prisma.sesiPraktikum.update({
+      where: { id: parseInt(req.params.id) },
+      data: { tanggal: new Date(tanggal) }
+    });
+    res.json({ message: 'Tanggal sesi berhasil diperbarui', updatedSesi });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal memperbarui sesi', error: error.message });
+  }
+});
+
 // GET semua komponen nilai per mata kuliah
 router.get('/komponen/:mataKuliahId', async (req, res) => {
   try {
