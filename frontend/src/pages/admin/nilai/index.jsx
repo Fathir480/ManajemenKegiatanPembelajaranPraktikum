@@ -111,21 +111,32 @@ export default function AdminNilai() {
   const calculateFinalGrade = (nilaiList) => {
     if (komponen.length === 0) return 0;
     
-    let totalBobot = 0;
-    let totalNilai = 0;
-
+    const categoryStats = {};
     komponen.forEach(k => {
+      if (!categoryStats[k.kategori]) categoryStats[k.kategori] = { totalBobot: 0, filledScores: [] };
+      categoryStats[k.kategori].totalBobot += parseFloat(k.bobot);
+
       const n = nilaiList.find(nl => nl.komponenId === k.id);
-      const score = n ? parseFloat(n.nilai) : 0;
-      const bobot = parseFloat(k.bobot);
-      
-      totalNilai += (score * (bobot / 100));
-      totalBobot += bobot;
+      if (n && n.nilai !== null && n.nilai !== undefined && n.nilai !== '') {
+        categoryStats[k.kategori].filledScores.push(parseFloat(n.nilai));
+      }
     });
 
-    if (totalBobot === 0) return 0;
-    // Normalize if totalBobot < 100
-    const finalScore = (totalNilai / totalBobot) * 100;
+    let totalNilai = 0;
+    let totalBobotAktif = 0;
+
+    Object.values(categoryStats).forEach(stat => {
+      let averageScore = 0;
+      if (stat.filledScores.length > 0) {
+        const sum = stat.filledScores.reduce((a, b) => a + b, 0);
+        averageScore = sum / stat.filledScores.length;
+      }
+      totalNilai += (averageScore * (stat.totalBobot / 100));
+      totalBobotAktif += stat.totalBobot;
+    });
+
+    if (totalBobotAktif === 0) return 0;
+    const finalScore = (totalNilai / (totalBobotAktif / 100));
     return finalScore.toFixed(2);
   };
 

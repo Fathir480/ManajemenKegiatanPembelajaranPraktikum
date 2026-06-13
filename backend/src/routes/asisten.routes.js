@@ -592,10 +592,16 @@ router.post('/nilai/bulk', async (req, res) => {
     if (!Array.isArray(updates)) return res.status(400).json({ message: 'Format data tidak valid.' });
 
     for (const update of updates) {
-      if (update.nilai === null || update.nilai === undefined || update.nilai === '') continue;
-      
       const mId = parseInt(update.mahasiswaId);
       const kId = parseInt(update.komponenId);
+
+      if (update.nilai === null || update.nilai === undefined || update.nilai === '') {
+        await prisma.nilai.deleteMany({
+          where: { mahasiswaId: mId, komponenId: kId, sesiId: null }
+        });
+        continue;
+      }
+      
       const val = parseFloat(update.nilai);
       
       const existing = await prisma.nilai.findFirst({
