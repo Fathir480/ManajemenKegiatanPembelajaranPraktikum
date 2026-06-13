@@ -1296,30 +1296,45 @@ router.get('/mahasiswa/non-asisten', async (req, res) => {
 router.post('/asisten/promote', async (req, res) => {
   try {
     const { userId } = req.body;
-    const user = await prisma.user.findUnique({
+    // userId di sini adalah ID User praktikan aslinya
+    const originalUser = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
       include: { mahasiswa: true, asisten: true },
     });
-    if (!user) return res.status(404).json({ message: 'User tidak ditemukan.' });
-
-    const roleAsisten = await prisma.role.findUnique({ where: { namaRole: 'asisten' } });
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { roleId: roleAsisten.id },
-    });
-
-    if (!user.asisten) {
-      const stambuk = user.mahasiswa?.stambuk || 'ASISTEN';
-      await prisma.asisten.create({
-        data: {
-          userId: user.id,
-          stambuk: stambuk,
-        },
-      });
+    
+    if (!originalUser || !originalUser.mahasiswa) {
+      return res.status(404).json({ message: 'Data Mahasiswa tidak ditemukan.' });
     }
 
-    res.json({ message: `${user.nama} berhasil dipromosikan sebagai Asisten.` });
+    const roleAsisten = await prisma.role.findUnique({ where: { namaRole: 'asisten' } });
+    const asistenStambuk = '1' + originalUser.mahasiswa.stambuk;
+    const asistenEmail = `asisten_${asistenStambuk}@praktikum.ac.id`;
+
+    // Cek apakah akun asisten ini sudah pernah dibuat sebelumnya
+    const existingAsistenUser = await prisma.user.findUnique({ where: { email: asistenEmail } });
+    if (existingAsistenUser) {
+       return res.status(400).json({ message: 'Mahasiswa ini sudah memiliki akun asisten.' });
+    }
+
+    // 1. Buat User baru khusus Asisten
+    const newAsistenUser = await prisma.user.create({
+      data: {
+        nama: originalUser.nama,
+        email: asistenEmail,
+        passwordHash: originalUser.passwordHash,
+        roleId: roleAsisten.id,
+      }
+    });
+
+    // 2. Buat record Asisten
+    await prisma.asisten.create({
+      data: {
+        userId: newAsistenUser.id,
+        stambuk: asistenStambuk,
+      },
+    });
+
+    res.json({ message: `${originalUser.nama} berhasil dipromosikan. Akun Asisten baru (ID: ${asistenStambuk}) telah dibuat.` });
   } catch (error) {
     res.status(500).json({ message: 'Gagal mempromosikan asisten.', error: error.message });
   }
@@ -1329,26 +1344,28 @@ router.post('/asisten/promote', async (req, res) => {
 router.post('/asisten/demote', async (req, res) => {
   try {
     const { userId } = req.body;
-    const user = await prisma.user.findUnique({
+    
+    // userId yang diterima adalah ID User dari akun Asisten
+    const userAsisten = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
       include: { asisten: true },
     });
-    if (!user) return res.status(404).json({ message: 'User tidak ditemukan.' });
+    
+    if (!userAsisten) return res.status(404).json({ message: 'User Asisten tidak ditemukan.' });
 
-    const roleMhs = await prisma.role.findUnique({ where: { namaRole: 'praktikan' } });
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { roleId: roleMhs.id },
-    });
-
-    if (user.asisten) {
+    // Hapus record Asisten
+    if (userAsisten.asisten) {
       await prisma.asisten.delete({
-        where: { id: user.asisten.id },
+        where: { id: userAsisten.asisten.id },
       });
     }
 
-    res.json({ message: `${user.nama} berhasil diturunkan menjadi Praktikan biasa.` });
+    // Hapus akun User asistennya
+    await prisma.user.delete({
+      where: { id: userAsisten.id },
+    });
+
+    res.json({ message: `${userAsisten.nama} berhasil dicabut dari Asisten. Akun asistennya telah dihapus.` });
   } catch (error) {
     res.status(500).json({ message: 'Gagal menurunkan asisten.', error: error.message });
   }
