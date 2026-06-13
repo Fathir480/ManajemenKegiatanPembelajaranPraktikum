@@ -80,9 +80,14 @@ export default function KelolaJadwal() {
     }
   };
 
-  const fetchSemesterConfig = async (semStr = '2024/2025 Genap') => {
+  const fetchSemesterConfig = async (semStr = 'active') => {
     try {
-      const res = await api.get(`/admin/jadwal/semester-config/${encodeURIComponent(semStr)}`);
+      // By default, fetch the active semester. If semStr is provided, fetch that specific one.
+      const url = semStr === 'active' 
+        ? '/admin/jadwal/semester-config/active' 
+        : `/admin/jadwal/semester-config/${encodeURIComponent(semStr)}`;
+        
+      const res = await api.get(url);
       setSemesterConfig(res || null);
       if (res && res.tanggalMulai && res.tanggalSelesai) {
         setVerifyDates({
@@ -98,7 +103,7 @@ export default function KelolaJadwal() {
 
   useEffect(() => {
     fetchData();
-    fetchSemesterConfig('2024/2025 Genap');
+    fetchSemesterConfig('active');
   }, []);
 
   const handleOpenAddModal = (initialData = {}) => {
@@ -407,24 +412,27 @@ export default function KelolaJadwal() {
       </div>
 
       {semesterConfig && (
-        <div className="alert alert-info mb-6" style={{ background: 'rgba(0, 150, 255, 0.08)', border: '1px solid rgba(0, 150, 255, 0.2)', padding: '16px 20px', borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="mb-6" style={{ position: 'relative', background: 'var(--surface-soft)', border: '1px solid var(--hairline-strong)', padding: '16px 20px', borderRadius: 'var(--radius-lg)' }}>
+          <button 
+            type="button" 
+            className="action-icon-btn action-delete"
+            onClick={handleCancelSemester}
+            title="Cancel Semester"
+            style={{ position: 'absolute', top: '12px', right: '16px' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
           <div>
-            <strong style={{ color: 'var(--ink)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+            <strong style={{ color: 'var(--ink)', fontSize: '14px' }}>
               Semester is Active & Running
             </strong>
             <div className="text-muted text-mono" style={{ fontSize: '11px', marginTop: '4px' }}>
               Semester: {semesterConfig.semester} | Date Range: {new Date(semesterConfig.tanggalMulai).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })} - {new Date(semesterConfig.tanggalSelesai).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
           </div>
-          <button 
-            type="button" 
-            className="btn btn-danger btn-sm" 
-            onClick={handleCancelSemester}
-            style={{ padding: '6px 12px', fontSize: '11px', letterSpacing: 0, textTransform: 'none', height: 'auto' }}
-          >
-            Cancel Semester
-          </button>
         </div>
       )}
 

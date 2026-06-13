@@ -317,7 +317,6 @@ router.delete('/dosen/:id', async (req, res) => {
 
     await prisma.$transaction([
       prisma.dosenMataKuliah.deleteMany({ where: { dosenId: dosenId } }),
-      prisma.pengampu.deleteMany({ where: { dosenId: dosenId } }),
       prisma.user.delete({ where: { id: dosen.userId } })
     ]);
 
@@ -456,7 +455,6 @@ router.delete('/matkul/:id', async (req, res) => {
       // 9. JadwalPraktikum (tergantung pada MataKuliah)
       prisma.jadwalPraktikum.deleteMany({ where: { mataKuliahId: mkId } }),
       // 10. Pengampu (tergantung pada MataKuliah)
-      prisma.pengampu.deleteMany({ where: { mataKuliahId: mkId } }),
       // 11. MataKuliah itu sendiri
       prisma.mataKuliah.delete({ where: { id: mkId } })
     ]);
@@ -549,7 +547,7 @@ router.post('/jadwal', async (req, res) => {
     const astId = asisenId ? parseInt(asisenId) : null;
     const kId = kelasId ? parseInt(kelasId) : null;
     const dosId = dosenId ? parseInt(dosenId) : null;
-    const finalSemester = semester || '2024/2025 Genap';
+    const finalSemester = semester || null;
 
     let finalKelas = kelas;
     if (kId) {
@@ -700,7 +698,7 @@ router.put('/jadwal/:id', async (req, res) => {
     const astId = asisenId ? parseInt(asisenId) : null;
     const kId = kelasId ? parseInt(kelasId) : null;
     const dosId = dosenId ? parseInt(dosenId) : null;
-    const finalSemester = semester || '2024/2025 Genap';
+    const finalSemester = semester || null;
 
     let finalKelas = kelas;
     if (kId) {
@@ -886,7 +884,7 @@ router.post('/jadwal/bulk', async (req, res) => {
           continue;
         }
 
-        const finalSemester = semester || '2024/2025 Genap';
+        const finalSemester = semester || null;
 
         // Validate Day enum
         const validDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -1098,8 +1096,8 @@ router.post('/jadwal/bulk', async (req, res) => {
 router.post('/jadwal/verify-semester', async (req, res) => {
   try {
     const { tanggalMulai, tanggalSelesai, semester } = req.body;
-    if (!tanggalMulai || !tanggalSelesai) {
-      return res.status(400).json({ message: 'Tanggal mulai dan tanggal selesai wajib diisi.' });
+    if (!tanggalMulai || !tanggalSelesai || !semester) {
+      return res.status(400).json({ message: 'Tanggal mulai, tanggal selesai, dan semester wajib diisi.' });
     }
 
     const start = new Date(tanggalMulai);
@@ -1118,7 +1116,7 @@ router.post('/jadwal/verify-semester', async (req, res) => {
       return res.status(400).json({ message: 'Rentang tanggal tidak boleh melebihi 6 bulan (180 hari).' });
     }
 
-    const finalSemester = semester || '2024/2025 Genap';
+    const finalSemester = semester;
 
     // Simpan/Upsert konfigurasi semester ke database
     await prisma.semesterConfig.upsert({
@@ -1168,10 +1166,17 @@ router.post('/jadwal/verify-semester', async (req, res) => {
       let pertemuan = 1;
 
       // Hapus sesi praktikum lama untuk jadwal ini untuk menghindari duplikat
-      // Cascade akan menghapus absensi & nilai terkait sesi tersebut jika ada
-      await prisma.sesiPraktikum.deleteMany({
-        where: { jadwalId: j.id }
+      const oldSesi = await prisma.sesiPraktikum.findMany({
+        where: { jadwalId: j.id },
+        select: { id: true }
       });
+      const oldSesiIds = oldSesi.map(s => s.id);
+      
+      if (oldSesiIds.length > 0) {
+        await prisma.absensi.deleteMany({ where: { sesiId: { in: oldSesiIds } } });
+        await prisma.nilai.deleteMany({ where: { sesiId: { in: oldSesiIds } } });
+        await prisma.sesiPraktikum.deleteMany({ where: { jadwalId: j.id } });
+      }
 
       // Cari semua tanggal yang harinya cocok antara start dan end
       while (current <= end) {
@@ -1196,13 +1201,27 @@ router.post('/jadwal/verify-semester', async (req, res) => {
       message: `Verifikasi jadwal semester sukses. Terbentuk ${totalSesiCreated} sesi praktikum untuk ${jadwalList.length} jadwal aktif.`
     });
   } catch (error) {
+    console.error('Error verifying semester:', error);
     res.status(500).json({ message: 'Gagal melakukan verifikasi semester.', error: error.message });
+  }
+});
+
+// GET konfigurasi semester aktif (terbaru)
+router.get('/jadwal/semester-config/active', async (req, res) => {
+  try {
+    const config = await prisma.semesterConfig.findFirst({
+      orderBy: { updatedAt: 'desc' }
+    });
+    res.json(config);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil konfigurasi semester aktif.', error: error.message });
   }
 });
 
 // GET konfigurasi semester
 router.get('/jadwal/semester-config/:semester', async (req, res) => {
   try {
+    if (req.params.semester === 'active') return; 
     const { semester } = req.params;
     const config = await prisma.semesterConfig.findUnique({
       where: { semester }
@@ -1231,12 +1250,26 @@ router.delete('/jadwal/semester-config/:semester', async (req, res) => {
 
     // 3. Hapus semua sesi praktikum terkait jadwal-jadwal tersebut
     if (jadwalIds.length > 0) {
-      await prisma.sesiPraktikum.deleteMany({
-        where: { jadwalId: { in: jadwalIds } }
+      const oldSesi = await prisma.sesiPraktikum.findMany({
+        where: { jadwalId: { in: jadwalIds } },
+        select: { id: true }
+      });
+      const oldSesiIds = oldSesi.map(s => s.id);
+
+      if (oldSesiIds.length > 0) {
+        await prisma.absensi.deleteMany({ where: { sesiId: { in: oldSesiIds } } });
+        await prisma.nilai.deleteMany({ where: { sesiId: { in: oldSesiIds } } });
+        await prisma.sesiPraktikum.deleteMany({ where: { jadwalId: { in: jadwalIds } } });
+      }
+
+      // 4. Set semester di jadwal menjadi null
+      await prisma.jadwalPraktikum.updateMany({
+        where: { id: { in: jadwalIds } },
+        data: { semester: null }
       });
     }
 
-    res.json({ message: `Semester ${semester} berhasil dibatalkan. Seluruh sesi praktikum telah dihapus.` });
+    res.json({ message: `Semester ${semester} berhasil dibatalkan. Seluruh sesi praktikum telah dihapus dan jadwal di-reset.` });
   } catch (error) {
     res.status(500).json({ message: 'Gagal membatalkan semester.', error: error.message });
   }
