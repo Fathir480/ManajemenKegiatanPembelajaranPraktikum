@@ -108,24 +108,21 @@ export default function App() {
           <PrivateRoute allowedRoles={['admin']}><ValidasiAjuan /></PrivateRoute>
         } />
 
-        {/* Asisten */}
-        <Route path="/asisten" element={
+        {/* Asisten Routes */}
+        <Route path="/asisten/dashboard" element={
           <PrivateRoute allowedRoles={['asisten']}><AsistenDashboard /></PrivateRoute>
         } />
         <Route path="/asisten/sesi" element={
           <PrivateRoute allowedRoles={['asisten']}><AsistenSesi /></PrivateRoute>
         } />
-        <Route path="/asisten/absensi" element={
-          <PrivateRoute allowedRoles={['asisten']}><AsistenAbsensi /></PrivateRoute>
-        } />
         <Route path="/asisten/nilai" element={
           <PrivateRoute allowedRoles={['asisten']}><AsistenNilai /></PrivateRoute>
         } />
-        <Route path="/asisten/ajuan" element={
-          <PrivateRoute allowedRoles={['asisten']}><AsistenAjuan /></PrivateRoute>
-        } />
         <Route path="/asisten/materi" element={
           <PrivateRoute allowedRoles={['asisten']}><AsistenMateri /></PrivateRoute>
+        } />
+        <Route path="/asisten/ajuan" element={
+          <PrivateRoute allowedRoles={['asisten']}><AsistenAjuan /></PrivateRoute>
         } />
 
         {/* Dosen */}

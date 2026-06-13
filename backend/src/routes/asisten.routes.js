@@ -460,4 +460,174 @@ router.get('/materi', async (req, res) => {
   }
 });
 
+// GET kelas yang dibimbing oleh asisten
+router.get('/kelas', async (req, res) => {
+  try {
+    const asisten = await prisma.asisten.findUnique({ where: { userId: req.user.id } });
+    if (!asisten) return res.status(404).json({ message: 'Data asisten tidak ditemukan.' });
+
+    // Dapatkan semua kelas yang diajar oleh asisten ini berdasarkan JadwalPraktikum
+    const jadwals = await prisma.jadwalPraktikum.findMany({
+      where: { asisenId: asisten.id },
+      include: {
+        kelasRef: {
+          include: {
+            mataKuliah: true
+          }
+        }
+      }
+    });
+
+    // Extract unique Kelas objects
+    const kelasList = jadwals.filter(j => j.kelasRef).map(j => j.kelasRef);
+    const uniqueKelas = Array.from(new Map(kelasList.map(item => [item.id, item])).values());
+
+    res.json(uniqueKelas);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil kelas asisten.', error: error.message });
+  }
+});
+
+// GET nilai matriks kelas (seperti admin/dosen)
+router.get('/nilai/kelas/:kelasId', async (req, res) => {
+  try {
+    const kelasId = parseInt(req.params.kelasId);
+    
+    const kelas = await prisma.kelas.findUnique({
+      where: { id: kelasId },
+      include: {
+        mataKuliah: true,
+      }
+    });
+    
+    if (!kelas) return res.status(404).json({ message: 'Kelas tidak ditemukan.' });
+
+    let komponen = await prisma.komponenNilai.findMany({
+      where: { mataKuliahId: kelas.mataKuliahId },
+      orderBy: { id: 'asc' }
+    });
+
+    // Auto-generate standard components if none exist
+    if (komponen.length === 0) {
+      const defaultComponents = [
+        { nama: 'Praktikum 1', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 2', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 3', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 4', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 5', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Praktikum 6', bobot: 5, kategori: 'praktikum', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Asistensi 1', bobot: 5, kategori: 'asistensi', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Asistensi 2', bobot: 5, kategori: 'asistensi', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'Asistensi 3', bobot: 5, kategori: 'asistensi', diinputOleh: 'asisten', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'UTS', bobot: 25, kategori: 'uts', diinputOleh: 'dosen', mataKuliahId: kelas.mataKuliahId },
+        { nama: 'UAS', bobot: 30, kategori: 'uas', diinputOleh: 'dosen', mataKuliahId: kelas.mataKuliahId }
+      ];
+      await prisma.komponenNilai.createMany({ data: defaultComponents });
+      
+      komponen = await prisma.komponenNilai.findMany({
+        where: { mataKuliahId: kelas.mataKuliahId },
+        orderBy: { id: 'asc' }
+      });
+    }
+
+    const peserta = await prisma.pesertaKelas.findMany({
+      where: { kelasId },
+      include: {
+        mahasiswa: {
+          include: {
+            user: { select: { nama: true } }
+          }
+        }
+      }
+    });
+
+    const mahasiswaIds = peserta.map(p => p.mahasiswaId);
+    
+    const nilai = await prisma.nilai.findMany({
+      where: {
+        mahasiswaId: { in: mahasiswaIds },
+        komponen: { mataKuliahId: kelas.mataKuliahId }
+      },
+      include: {
+        komponen: { select: { nama: true, kategori: true } }
+      }
+    });
+
+    const formattedStudents = peserta.map(p => {
+      const mhs = p.mahasiswa;
+      const nilaiMhs = nilai.filter(n => n.mahasiswaId === mhs.id);
+      
+      return {
+        id: mhs.id,
+        stambuk: mhs.stambuk,
+        nama: mhs.user.nama,
+        nilai: nilaiMhs.map(n => ({
+          komponenId: n.komponenId,
+          nilai: n.nilai,
+          kategori: n.komponen.kategori,
+          namaKomponen: n.komponen.nama
+        }))
+      };
+    });
+
+    res.json({
+      kelas: {
+        id: kelas.id,
+        namaKelas: kelas.namaKelas,
+        mataKuliah: kelas.mataKuliah.nama,
+        kode: kelas.mataKuliah.kode
+      },
+      komponen,
+      students: formattedStudents
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil rekap nilai kelas.', error: error.message });
+  }
+});
+
+// POST bulk input nilai praktikum/asistensi
+router.post('/nilai/bulk', async (req, res) => {
+  try {
+    const { updates } = req.body; // updates: [{mahasiswaId, komponenId, nilai}]
+    if (!Array.isArray(updates)) return res.status(400).json({ message: 'Format data tidak valid.' });
+
+    for (const update of updates) {
+      if (update.nilai === null || update.nilai === undefined || update.nilai === '') continue;
+      
+      const mId = parseInt(update.mahasiswaId);
+      const kId = parseInt(update.komponenId);
+      const val = parseFloat(update.nilai);
+      
+      const existing = await prisma.nilai.findFirst({
+        where: {
+          mahasiswaId: mId,
+          komponenId: kId,
+          sesiId: null
+        }
+      });
+
+      if (existing) {
+        await prisma.nilai.update({
+          where: { id: existing.id },
+          data: { nilai: val, diinputOleh: req.user.id }
+        });
+      } else {
+        await prisma.nilai.create({
+          data: {
+            mahasiswaId: mId,
+            komponenId: kId,
+            sesiId: null,
+            nilai: val,
+            diinputOleh: req.user.id
+          }
+        });
+      }
+    }
+
+    res.json({ message: 'Perubahan nilai berhasil disimpan.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal menyimpan nilai.', error: error.message });
+  }
+});
+
 module.exports = router;
