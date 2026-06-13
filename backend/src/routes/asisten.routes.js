@@ -637,4 +637,185 @@ router.post('/nilai/bulk', async (req, res) => {
   }
 });
 
+
+// GET detail absensi kelas asisten (list mahasiswa & sesi & status absensi)
+router.get('/absensi/kelas/:kelasId', async (req, res) => {
+  try {
+    const kelasId = parseInt(req.params.kelasId);
+    
+    // Cari asisten
+    const asisten = await prisma.asisten.findUnique({ where: { userId: req.user.id } });
+    if (!asisten) return res.status(404).json({ message: 'Data asisten tidak ditemukan.' });
+
+    // Validasi penugasan asisten ke kelas ini
+    const isAssigned = await prisma.jadwalPraktikum.findFirst({
+      where: {
+        asisenId: asisten.id,
+        kelasId: kelasId
+      }
+    });
+    if (!isAssigned) {
+      return res.status(403).json({ message: 'Anda tidak berwenang mengakses data absensi kelas ini.' });
+    }
+
+    // Ambil detail kelas
+    const kelas = await prisma.kelas.findUnique({
+      where: { id: kelasId },
+      include: { mataKuliah: true }
+    });
+    if (!kelas) {
+      return res.status(404).json({ message: 'Kelas tidak ditemukan.' });
+    }
+
+    // Ambil semua mahasiswa di kelas ini
+    const peserta = await prisma.pesertaKelas.findMany({
+      where: { kelasId },
+      include: {
+        mahasiswa: {
+          include: { user: { select: { nama: true } } }
+        }
+      },
+      orderBy: { mahasiswa: { stambuk: 'asc' } }
+    });
+
+    // Ambil semua sesi praktikum yang berkaitan dengan kelas ini
+    const sesi = await prisma.sesiPraktikum.findMany({
+      where: {
+        jadwal: { kelasId }
+      },
+      orderBy: [
+        { pertemuanKe: 'asc' },
+        { tanggal: 'asc' }
+      ]
+    });
+
+    const sesiIds = sesi.map(s => s.id);
+
+    // Ambil data absensi untuk sesi-sesi tersebut
+    let absensi = [];
+    if (sesiIds.length > 0) {
+      absensi = await prisma.absensi.findMany({
+        where: {
+          sesiId: { in: sesiIds }
+        }
+      });
+    }
+
+    res.json({
+      kelas,
+      students: peserta.map(p => ({
+        id: p.mahasiswa.id,
+        nama: p.mahasiswa.user.nama,
+        stambuk: p.mahasiswa.stambuk
+      })),
+      sessions: sesi.map(s => ({
+        id: s.id,
+        tanggal: s.tanggal,
+        pertemuanKe: s.pertemuanKe,
+        topik: s.topik,
+        dibukaPada: s.dibukaPada,
+        ditutupPada: s.ditutupPada
+      })),
+      attendance: absensi
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil data absensi kelas.', error: error.message });
+  }
+});
+
+// PUT ubah tanggal sesi absensi asisten
+router.put('/absensi/sesi/:sesiId', async (req, res) => {
+  try {
+    const sesiId = parseInt(req.params.sesiId);
+    const { tanggal } = req.body;
+    if (!tanggal) {
+      return res.status(400).json({ message: 'Tanggal wajib diisi.' });
+    }
+
+    const start = new Date(tanggal);
+    if (isNaN(start.getTime())) {
+      return res.status(400).json({ message: 'Format tanggal tidak valid.' });
+    }
+
+    // Cari asisten
+    const asisten = await prisma.asisten.findUnique({ where: { userId: req.user.id } });
+    if (!asisten) return res.status(404).json({ message: 'Data asisten tidak ditemukan.' });
+
+    // Cari sesi dan validasi penugasan asisten
+    const sesiRecord = await prisma.sesiPraktikum.findUnique({
+      where: { id: sesiId },
+      include: { jadwal: true }
+    });
+    if (!sesiRecord) {
+      return res.status(404).json({ message: 'Sesi praktikum tidak ditemukan.' });
+    }
+    if (sesiRecord.jadwal.asisenId !== asisten.id) {
+      return res.status(403).json({ message: 'Anda tidak berwenang mengubah sesi untuk jadwal ini.' });
+    }
+
+    const updatedSesi = await prisma.sesiPraktikum.update({
+      where: { id: sesiId },
+      data: { tanggal: start }
+    });
+
+    res.json({ message: 'Tanggal absensi berhasil diubah.', updatedSesi });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengubah tanggal absensi.', error: error.message });
+  }
+});
+
+// PUT perbarui status absensi mahasiswa manual oleh asisten
+router.put('/absensi/update', async (req, res) => {
+  try {
+    const { sesiId, mahasiswaId, status } = req.body;
+    if (!sesiId || !mahasiswaId || !status) {
+      return res.status(400).json({ message: 'Sesi, mahasiswa, dan status wajib diisi.' });
+    }
+
+    const validStatuses = ['hadir', 'izin', 'sakit', 'alpa'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Status absensi tidak valid.' });
+    }
+
+    // Cari asisten
+    const asisten = await prisma.asisten.findUnique({ where: { userId: req.user.id } });
+    if (!asisten) return res.status(404).json({ message: 'Data asisten tidak ditemukan.' });
+
+    // Cari sesi dan validasi penugasan asisten
+    const sesiRecord = await prisma.sesiPraktikum.findUnique({
+      where: { id: parseInt(sesiId) },
+      include: { jadwal: true }
+    });
+    if (!sesiRecord) {
+      return res.status(404).json({ message: 'Sesi praktikum tidak ditemukan.' });
+    }
+    if (sesiRecord.jadwal.asisenId !== asisten.id) {
+      return res.status(403).json({ message: 'Anda tidak berwenang memperbarui absensi untuk jadwal ini.' });
+    }
+
+    const absensi = await prisma.absensi.upsert({
+      where: {
+        sesiId_mahasiswaId: {
+          sesiId: parseInt(sesiId),
+          mahasiswaId: parseInt(mahasiswaId)
+        }
+      },
+      update: { status, dicatatOleh: req.user.id, waktuAbsen: new Date() },
+      create: {
+        sesiId: parseInt(sesiId),
+        mahasiswaId: parseInt(mahasiswaId),
+        status,
+        metode: 'manual',
+        dicatatOleh: req.user.id,
+        waktuAbsen: new Date()
+      }
+    });
+
+    res.json({ message: 'Absensi berhasil diperbarui.', absensi });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal memperbarui absensi.', error: error.message });
+  }
+});
+
 module.exports = router;
+

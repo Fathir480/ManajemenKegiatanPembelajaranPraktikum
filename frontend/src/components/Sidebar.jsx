@@ -17,7 +17,6 @@ const navItems = {
   ],
   asisten: [
     { to: '/asisten', label: 'Dashboard', end: true },
-    { to: '/asisten/sesi', label: 'Practicum Sessions' },
     { to: '/asisten/absensi', label: 'Attendance & Scanner' },
     { to: '/asisten/nilai', label: 'Grade Input' },
     { to: '/asisten/ajuan', label: 'Schedule Requests' },
