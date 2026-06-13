@@ -81,7 +81,7 @@ export default function DosenAbsensi() {
   };
 
   return (
-    <DashboardLayout title="Rekap Absensi Praktikum (Read-Only)">
+    <DashboardLayout title="Practicum Attendance Recap (Read-Only)">
       <div className="card mb-6">
         <div className="card-header" style={{ borderBottom: '1px solid var(--hairline)', paddingBottom: '16px', marginBottom: '16px' }}>
           <div>
@@ -93,10 +93,10 @@ export default function DosenAbsensi() {
                 <line x1="16" y1="17" x2="8" y2="17" />
                 <polyline points="10 9 9 9 8 9" />
               </svg>
-              Matriks Absensi Kelas
+              Class Attendance Matrix
             </h3>
             <p className="text-muted" style={{ fontSize: '13px', marginTop: '4px' }}>
-              Tampilan read-only daftar kehadiran mahasiswa untuk setiap sesi praktikum.
+              Read-only view of student attendance records for each practicum session.
             </p>
           </div>
         </div>
@@ -107,7 +107,7 @@ export default function DosenAbsensi() {
         <div className="filter-section" style={{ background: 'var(--surface-soft)', padding: '16px', borderRadius: '8px', marginBottom: '24px' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Pilih Kelas Praktikum
+              Select Practicum Class
             </label>
             {loadingClasses ? (
               <div className="text-muted text-mono" style={{ fontSize: '13px', padding: '8px 0' }}>Loading classes...</div>
@@ -118,7 +118,7 @@ export default function DosenAbsensi() {
                 onChange={handleKelasChange}
                 style={{ maxWidth: '400px', backgroundColor: 'var(--surface)', fontWeight: 500 }}
               >
-                <option value="" disabled>-- Pilih Kelas --</option>
+                <option value="" disabled>-- Select Class --</option>
                 {classes.map(c => (
                   <option key={c.id} value={c.id}>
                     {c.namaKelas} - {c.mataKuliah?.nama} ({c.mataKuliah?.kode})
@@ -136,15 +136,15 @@ export default function DosenAbsensi() {
           </div>
         ) : !selectedKelasId ? (
           <div className="empty-state" style={{ padding: '80px 0' }}>
-            <p>Silakan pilih kelas pada opsi di atas.</p>
+            <p>Please select a class from the options above.</p>
           </div>
         ) : students.length === 0 ? (
           <div className="empty-state" style={{ padding: '80px 0' }}>
-            <p>Tidak ada mahasiswa yang terdaftar pada kelas ini.</p>
+            <p>No students enrolled in this class.</p>
           </div>
         ) : sessions.length === 0 ? (
           <div className="empty-state" style={{ padding: '80px 0', border: '2px dashed var(--hairline-strong)' }}>
-            <p className="mb-4">Sesi absensi untuk kelas ini belum tersedia.</p>
+            <p className="mb-4">Attendance sessions for this class are not yet available.</p>
           </div>
         ) : (
           /* MATRIX ATTENDANCE TABLE */
@@ -153,7 +153,7 @@ export default function DosenAbsensi() {
               <thead>
                 <tr>
                   <th style={{ width: '260px', minWidth: '260px', textAlign: 'left', background: 'var(--surface-strong)', color: 'var(--ink)', position: 'sticky', left: 0, zIndex: 11 }}>
-                    Nama Mahasiswa / NIM
+                    Student Name / NIM
                   </th>
                   {sessions.map(s => (
                     <th key={s.id} style={{ minWidth: '80px', textAlign: 'center', background: 'var(--surface-soft)', color: 'var(--ink)' }}>

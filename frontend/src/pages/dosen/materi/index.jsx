@@ -59,7 +59,7 @@ export default function DosenMateri() {
 
   const handleOpenAddModal = () => {
     if (!selectedKelasId) {
-      setError('Silakan pilih kelas terlebih dahulu sebelum mengupload materi.');
+      setError('Please select a class first before uploading a material.');
       return;
     }
     setDeskripsi('');
@@ -136,13 +136,13 @@ export default function DosenMateri() {
 
       <div className="card mb-6">
         <div className="form-group" style={{ maxWidth: '400px', marginBottom: '24px' }}>
-          <label className="form-label">Pilih Kelas / Mata Kuliah</label>
+          <label className="form-label">Select Class / Course</label>
           <select
             className="form-select"
             value={selectedKelasId}
             onChange={(e) => setSelectedKelasId(e.target.value)}
           >
-            <option value="">-- Pilih Kelas --</option>
+            <option value="">-- Select Class --</option>
             {kelas.map(k => (
               <option key={k.id} value={k.id}>
                 {k.namaKelas} - {k.mataKuliah?.nama || 'Unknown Course'}
@@ -155,12 +155,12 @@ export default function DosenMateri() {
           <div className="flex-center" style={{ minHeight: '200px' }}><div className="spinner" /></div>
         ) : !selectedKelasId ? (
           <div className="empty-state">
-            <p>Silakan pilih kelas terlebih dahulu</p>
+            <p>Please select a class first</p>
           </div>
         ) : materi.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon"></div>
-            <p>Belum ada file materi yang diupload untuk kelas ini.</p>
+            <p>No material files uploaded for this class yet.</p>
           </div>
         ) : (
           <div className="table-wrapper">
@@ -230,7 +230,7 @@ export default function DosenMateri() {
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: '500px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Upload File Materi</h3>
+              <h3 className="modal-title">Upload Material File</h3>
               <button className="modal-close" onClick={() => setIsModalOpen(false)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
