@@ -20,12 +20,6 @@ export default function AsistenAbsensi() {
   // Track unsaved attendance changes
   const [pendingChanges, setPendingChanges] = useState({});
 
-  // Date Editing Modal State
-  const [isDateModalOpen, setIsDateModalOpen] = useState(false);
-  const [editingSession, setEditingSession] = useState(null);
-  const [newDate, setNewDate] = useState('');
-  const [modalError, setModalError] = useState('');
-
   // Scanner Modal State
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
   const [scanSessionId, setScanSessionId] = useState('');
@@ -131,45 +125,12 @@ export default function AsistenAbsensi() {
         })
       ));
 
-      setSuccess(`Berhasil menyimpan ${changes.length} perubahan absensi.`);
+      setSuccess(`Successfully saved ${changes.length} attendance changes.`);
       setPendingChanges({}); // Clear pending changes
     } catch (err) {
       setError(err.message || 'Failed to update attendance status.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Open date editing modal
-  const openDateModal = (session) => {
-    setEditingSession(session);
-    // Format date string from DB (usually ISO string) to YYYY-MM-DD for date input
-    const dateStr = session.tanggal ? new Date(session.tanggal).toISOString().split('T')[0] : '';
-    setNewDate(dateStr);
-    setModalError('');
-    setIsDateModalOpen(true);
-  };
-
-  // Submit new date for the session
-  const handleDateSubmit = async (e) => {
-    e.preventDefault();
-    if (!newDate) {
-      setModalError('Please select a valid date.');
-      return;
-    }
-    try {
-      setModalError('');
-      const res = await api.put(`/asisten/absensi/sesi/${editingSession.id}`, { tanggal: newDate });
-      
-      // Update local sessions state
-      setSessions(prev => 
-        prev.map(s => s.id === editingSession.id ? { ...s, tanggal: res.updatedSesi.tanggal } : s)
-      );
-
-      setSuccess('Session date updated successfully.');
-      setIsDateModalOpen(false);
-    } catch (err) {
-      setModalError(err.message || 'Failed to update session date.');
     }
   };
 
@@ -204,9 +165,9 @@ export default function AsistenAbsensi() {
                 sesiId: scanSessionId,
                 qrToken: decodedText
               });
-              setScanMessage({ type: 'success', text: res.message || 'Absen berhasil.' });
+              setScanMessage({ type: 'success', text: res.message || 'Attendance recorded.' });
             } catch (err) {
-              setScanMessage({ type: 'error', text: err.message || 'Gagal absen.' });
+              setScanMessage({ type: 'error', text: err.message || 'Failed to record attendance.' });
             }
             
             // Resume scanning after 2.5 seconds
@@ -222,7 +183,7 @@ export default function AsistenAbsensi() {
           // Ignore general scan errors (no QR found in frame)
         }
       ).catch((err) => {
-        setScanMessage({ type: 'error', text: 'Gagal mengakses kamera. Pastikan izin kamera diberikan.' });
+        setScanMessage({ type: 'error', text: 'Failed to access camera. Please ensure camera permissions are granted.' });
         console.error("Camera start error:", err);
       });
     }
@@ -275,7 +236,7 @@ export default function AsistenAbsensi() {
       <div className="page-header">
         <div className="page-header-left">
           <h1 style={{ fontSize: '28px' }}>Practical Course Attendance</h1>
-          <p className="page-subtitle">Monitor student attendance logs, modify session dates, and override individual attendance statuses</p>
+          <p className="page-subtitle">Monitor student attendance logs and override individual attendance statuses</p>
         </div>
         <div className="flex gap-3">
           {selectedKelasId && students.length > 0 && sessions.length > 0 && (
@@ -317,7 +278,7 @@ export default function AsistenAbsensi() {
                 <option value="">-- Select Class --</option>
                 {classes.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.namaKelas} - {c.mataKuliah?.nama} ({c.mataKuliah?.kode})
+                    {c.namaKelas} - {c.mataKuliah?.nama}
                   </option>
                 ))}
               </select>
@@ -337,7 +298,7 @@ export default function AsistenAbsensi() {
                   <polyline points="17 21 17 13 7 13 7 21"></polyline>
                   <polyline points="7 3 7 8 15 8"></polyline>
                 </svg>
-                {loading ? 'Menyimpan...' : `Simpan ${Object.keys(pendingChanges).length} Perubahan`}
+                {loading ? 'Saving...' : `Save ${Object.keys(pendingChanges).length} Changes`}
               </button>
             </div>
           )}
@@ -378,20 +339,6 @@ export default function AsistenAbsensi() {
                         <span className="text-mono" style={{ fontSize: '12px', fontWeight: 600 }}>
                           {formatDateDisplay(s.tanggal)}
                         </span>
-                        <button 
-                          type="button" 
-                          className="action-icon-btn action-edit"
-                          onClick={() => openDateModal(s)}
-                          style={{ padding: '2px', display: 'inline-flex' }}
-                          title="Change Date"
-                        >
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                            <line x1="16" y1="2" x2="16" y2="6" />
-                            <line x1="8" y1="2" x2="8" y2="6" />
-                            <line x1="3" y1="10" x2="21" y2="10" />
-                          </svg>
-                        </button>
                       </div>
                     </th>
                   ))}
@@ -445,52 +392,6 @@ export default function AsistenAbsensi() {
         )}
       </div>
 
-      {/* DATE EDITING MODAL */}
-      {isDateModalOpen && editingSession && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: '400px' }}>
-            <div className="modal-header">
-              <h3 className="modal-title">Edit Session Date</h3>
-              <button className="modal-close" onClick={() => setIsDateModalOpen(false)}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-            
-            <form onSubmit={handleDateSubmit} className="login-form">
-              {modalError && <div className="alert alert-error mb-4">{modalError}</div>}
-              
-              <div style={{ fontSize: '13px', color: 'var(--body)', marginBottom: '16px', lineHeight: 1.5 }}>
-                Ubah tanggal absensi untuk <strong>Sesi Pertemuan Ke-{editingSession.pertemuanKe}</strong>. 
-                Hal ini akan memindahkan tanggal sesi tersebut untuk semua absensi mahasiswa.
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Tanggal Baru</label>
-                <input 
-                  type="date"
-                  className="form-input"
-                  required
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                />
-              </div>
-
-              <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setIsDateModalOpen(false)}>
-                  Batal
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Ubah Tanggal
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* QR SCANNER MODAL */}
       {isScannerModalOpen && (
         <div className="modal-overlay">
@@ -507,21 +408,21 @@ export default function AsistenAbsensi() {
             
             <div className="login-form">
               <div style={{ fontSize: '13px', color: 'var(--body)', marginBottom: '16px', lineHeight: 1.5 }}>
-                Silakan pilih sesi pertemuan terlebih dahulu. Setelah dipilih, tekan "Mulai Kamera" untuk memulai proses scan QR mahasiswa.
+                Please select a session first. Once selected, click "Start Camera" to begin scanning student QR codes.
               </div>
 
               {!isScanning && (
                 <div className="form-group">
-                  <label className="form-label">Sesi Pertemuan</label>
+                  <label className="form-label">Session</label>
                   <select 
                     className="form-select" 
                     value={scanSessionId} 
                     onChange={(e) => setScanSessionId(e.target.value)}
                   >
-                    <option value="">-- Pilih Sesi --</option>
+                    <option value="">-- Select Session --</option>
                     {sessions.map(s => (
                       <option key={s.id} value={s.id}>
-                        Pertemuan {s.pertemuanKe} ({formatDateDisplay(s.tanggal)})
+                        Session {s.pertemuanKe} ({formatDateDisplay(s.tanggal)})
                       </option>
                     ))}
                   </select>
@@ -539,14 +440,14 @@ export default function AsistenAbsensi() {
                   <div id="qr-reader" style={{ width: '100%', borderRadius: '8px', overflow: 'hidden', border: '2px solid var(--hairline-strong)' }}></div>
                   <div className="flex-center mt-4" style={{ display: 'flex', justifyContent: 'center' }}>
                     <button type="button" className="btn btn-outline" onClick={() => { setIsScanning(false); setScanMessage(null); }}>
-                      Stop Kamera
+                      Stop Camera
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
                   <button type="button" className="btn btn-ghost" onClick={handleCloseScanner}>
-                    Tutup
+                    Close
                   </button>
                   <button 
                     type="button" 
@@ -554,7 +455,7 @@ export default function AsistenAbsensi() {
                     disabled={!scanSessionId}
                     onClick={() => setIsScanning(true)}
                   >
-                    Mulai Kamera
+                    Start Camera
                   </button>
                 </div>
               )}

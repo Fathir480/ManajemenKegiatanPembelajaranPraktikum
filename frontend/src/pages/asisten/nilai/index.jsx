@@ -255,7 +255,7 @@ export default function AsistenNilai() {
                 <option value="">-- Select Class --</option>
                 {classes.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.namaKelas} - {c.mataKuliah?.nama} ({c.mataKuliah?.kode})
+                    {c.namaKelas} - {c.mataKuliah?.nama}
                   </option>
                 ))}
               </select>

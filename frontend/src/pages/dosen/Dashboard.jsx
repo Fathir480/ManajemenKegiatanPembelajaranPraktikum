@@ -80,11 +80,12 @@ export default function DosenDashboard() {
 
       <div className="grid-3">
         {[
+          { href: '/dosen/absensi', label: 'Attendance', desc: 'Monitor student attendance logs' },
+          { href: '/dosen/materi', label: 'Materi & Modul', desc: 'Upload modules, slides, and references' },
           { href: '/dosen/nilai', label: 'Grades', desc: 'Manage grades and input UTS/UAS' },
-          { href: '/dosen/materi', label: 'Upload Material', desc: 'Upload modules, slides, and references' },
         ].map(item => (
           <a key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--hairline)', textDecoration: 'none', transition: 'all var(--transition)' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--pacific-blue)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#ffffff'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--hairline)'; e.currentTarget.style.transform = 'none'; }}>
             <div>
               <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--ink)' }}>{item.label}</div>

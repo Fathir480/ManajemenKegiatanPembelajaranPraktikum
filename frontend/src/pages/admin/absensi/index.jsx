@@ -81,33 +81,6 @@ export default function AdminAbsensi() {
     return record ? record.status : 'alpa'; // Default is alpa if not recorded
   };
 
-  // Update attendance status manually
-  const handleStatusChange = async (studentId, sessionId, newStatus) => {
-    try {
-      setError('');
-      setSuccess('');
-      await api.put('/admin/absensi/update', {
-        sesiId: sessionId,
-        mahasiswaId: studentId,
-        status: newStatus
-      });
-
-      // Update local state to reflect change instantly
-      setAttendance(prev => {
-        const index = prev.findIndex(a => a.mahasiswaId === studentId && a.sesiId === sessionId);
-        if (index > -1) {
-          const updated = [...prev];
-          updated[index] = { ...updated[index], status: newStatus };
-          return updated;
-        } else {
-          return [...prev, { sesiId: sessionId, mahasiswaId: studentId, status: newStatus }];
-        }
-      });
-      setSuccess('Attendance status updated successfully.');
-    } catch (err) {
-      setError(err.message || 'Failed to update attendance status.');
-    }
-  };
 
   // Open date editing modal
   const openDateModal = (session) => {
@@ -180,7 +153,7 @@ export default function AdminAbsensi() {
       <div className="page-header">
         <div className="page-header-left">
           <h1 style={{ fontSize: '28px' }}>Practical Course Attendance</h1>
-          <p className="page-subtitle">Monitor student attendance logs, modify session dates, and override individual attendance statuses</p>
+          <p className="page-subtitle">View student attendance logs and modify session dates (attendance input is managed by Assistants)</p>
         </div>
         <div className="flex gap-3">
           {selectedKelasId && students.length > 0 && sessions.length > 0 && (
@@ -210,7 +183,7 @@ export default function AdminAbsensi() {
                 <option value="">-- Select Class --</option>
                 {classes.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.namaKelas} - {c.mataKuliah?.nama} ({c.mataKuliah?.kode})
+                    {c.namaKelas} - {c.mataKuliah?.nama}
                   </option>
                 ))}
               </select>
@@ -285,30 +258,27 @@ export default function AdminAbsensi() {
                     </td>
                     {sessions.map(s => {
                       const currentStatus = getAttendanceStatus(std.id, s.id);
+                      const initial = currentStatus === 'hadir' ? 'H' : currentStatus === 'izin' ? 'I' : currentStatus === 'sakit' ? 'S' : 'A';
                       return (
                         <td key={s.id} style={{ textAlign: 'center', verticalAlign: 'middle', padding: '6px 4px' }}>
-                          <select
+                          <div
                             className={`status-select status-${currentStatus}`}
-                            value={currentStatus}
-                            onChange={(e) => handleStatusChange(std.id, s.id, e.target.value)}
                             style={{
                               fontFamily: 'var(--font-mono)',
                               fontSize: '11px',
                               fontWeight: 600,
                               borderRadius: '4px',
-                              padding: '2px 4px',
+                              padding: '4px',
                               border: '1px solid var(--hairline-strong)',
-                              cursor: 'pointer',
-                              width: '48px',
+                              width: '32px',
                               textAlign: 'center',
-                              textTransform: 'uppercase'
+                              textTransform: 'uppercase',
+                              display: 'inline-block',
+                              cursor: 'default'
                             }}
                           >
-                            <option value="hadir">H</option>
-                            <option value="izin">I</option>
-                            <option value="sakit">S</option>
-                            <option value="alpa">A</option>
-                          </select>
+                            {initial}
+                          </div>
                         </td>
                       );
                     })}

@@ -92,11 +92,12 @@ export default function AsistenDashboard() {
 
       <div className="grid-3">
         {[
-          { href: '/asisten/absensi', label: 'Manage Attendance', desc: 'Record and monitor student attendance' },
+          { href: '/asisten/absensi', label: 'Attendance & Scanner', desc: 'Record and monitor student attendance' },
           { href: '/asisten/nilai', label: 'Grade Input', desc: 'Record assistant & report grades' },
+          { href: '/asisten/materi', label: 'Materi & Modul', desc: 'Manage practicum materials' },
         ].map(item => (
           <a key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--hairline)', textDecoration: 'none', transition: 'all var(--transition)', background: 'var(--surface)' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--pacific-blue)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#ffffff'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--hairline)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}>
             <div>
               <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--ink)' }}>{item.label}</div>

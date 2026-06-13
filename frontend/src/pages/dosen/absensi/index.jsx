@@ -83,50 +83,27 @@ export default function DosenAbsensi() {
   return (
     <DashboardLayout title="Practicum Attendance Recap (Read-Only)">
       <div className="card mb-6">
-        <div className="card-header" style={{ borderBottom: '1px solid var(--hairline)', paddingBottom: '16px', marginBottom: '16px' }}>
-          <div>
-            <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10 9 9 9 8 9" />
-              </svg>
-              Class Attendance Matrix
-            </h3>
-            <p className="text-muted" style={{ fontSize: '13px', marginTop: '4px' }}>
-              Read-only view of student attendance records for each practicum session.
-            </p>
-          </div>
-        </div>
-
         {error && <div className="alert alert-error mb-6">{error}</div>}
 
         {/* Filter Section */}
-        <div className="filter-section" style={{ background: 'var(--surface-soft)', padding: '16px', borderRadius: '8px', marginBottom: '24px' }}>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Select Practicum Class
-            </label>
-            {loadingClasses ? (
-              <div className="text-muted text-mono" style={{ fontSize: '13px', padding: '8px 0' }}>Loading classes...</div>
-            ) : (
-              <select 
-                className="form-select" 
-                value={selectedKelasId} 
-                onChange={handleKelasChange}
-                style={{ maxWidth: '400px', backgroundColor: 'var(--surface)', fontWeight: 500 }}
-              >
-                <option value="" disabled>-- Select Class --</option>
-                {classes.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.namaKelas} - {c.mataKuliah?.nama} ({c.mataKuliah?.kode})
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
+        <div className="form-group" style={{ maxWidth: '400px', marginBottom: '24px' }}>
+          <label className="form-label">Select Practicum Class</label>
+          {loadingClasses ? (
+            <div className="text-muted text-mono" style={{ fontSize: '13px', padding: '8px 0' }}>Loading classes...</div>
+          ) : (
+            <select 
+              className="form-select" 
+              value={selectedKelasId} 
+              onChange={handleKelasChange}
+            >
+              <option value="" disabled>-- Select Class --</option>
+              {classes.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.namaKelas} - {c.mataKuliah?.nama}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {loading ? (

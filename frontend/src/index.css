@@ -978,6 +978,19 @@ tbody td { padding: var(--space-3) var(--space-4); color: var(--body); font-size
   box-shadow: none !important;
 }
 
+.theme-admin .btn-ghost {
+  background: transparent !important;
+  color: var(--body-muted) !important;
+  border: 1px solid var(--hairline-strong) !important;
+}
+
+.theme-admin .btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+  box-shadow: none !important;
+}
+
 /* Tables inside admin theme */
 .theme-admin thead th {
   font-family: var(--font-mono) !important;

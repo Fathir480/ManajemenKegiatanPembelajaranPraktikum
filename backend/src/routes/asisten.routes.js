@@ -320,19 +320,7 @@ router.get('/absensi/kelas/:kelasId', async (req, res) => {
   }
 });
 
-// PUT update tanggal sesi
-router.put('/absensi/sesi/:id', async (req, res) => {
-  try {
-    const { tanggal } = req.body;
-    const updatedSesi = await prisma.sesiPraktikum.update({
-      where: { id: parseInt(req.params.id) },
-      data: { tanggal: new Date(tanggal) }
-    });
-    res.json({ message: 'Tanggal sesi berhasil diperbarui', updatedSesi });
-  } catch (error) {
-    res.status(500).json({ message: 'Gagal memperbarui sesi', error: error.message });
-  }
-});
+
 
 // GET semua komponen nilai per mata kuliah
 router.get('/komponen/:mataKuliahId', async (req, res) => {
