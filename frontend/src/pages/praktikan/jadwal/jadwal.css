@@ -5,3 +5,31 @@
   gap: var(--space-4);
   margin-top: var(--space-4);
 }
+
+/* Custom Scrollbar for Matrix */
+.custom-scrollbar-wrapper::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.custom-scrollbar-wrapper::-webkit-scrollbar-track {
+  background: var(--surface);
+  border-radius: 4px;
+}
+.custom-scrollbar-wrapper::-webkit-scrollbar-thumb {
+  background: var(--hairline-strong);
+  border-radius: 4px;
+}
+.custom-scrollbar-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+/* Disable Hover Effects in Matrix for Praktikan */
+.jadwal-praktikan-view .matrix-slot-cell:hover {
+  background: transparent !important;
+}
+.jadwal-praktikan-view .matrix-card-compact:hover {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  transform: none !important;
+  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+}

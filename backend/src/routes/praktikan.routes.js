@@ -97,6 +97,73 @@ router.get('/absensi', async (req, res) => {
   }
 });
 
+// GET matriks absensi kelas (read-only for student)
+router.get('/absensi/kelas/:kelasId', async (req, res) => {
+  try {
+    const kelasId = parseInt(req.params.kelasId);
+    
+    // Pastikan mahasiswa
+    const mahasiswa = await prisma.mahasiswa.findUnique({
+      where: { userId: req.user.id }
+    });
+    if (!mahasiswa) return res.status(404).json({ message: 'Data mahasiswa tidak ditemukan.' });
+
+    // Cek apakah mahasiswa terdaftar di kelas ini
+    const isEnrolled = await prisma.pesertaKelas.findUnique({
+      where: { kelasId_mahasiswaId: { kelasId, mahasiswaId: mahasiswa.id } }
+    });
+    if (!isEnrolled) return res.status(403).json({ message: 'Anda tidak memiliki akses ke absensi kelas ini.' });
+
+    // Ambil detail kelas
+    const kelas = await prisma.kelas.findUnique({
+      where: { id: kelasId },
+      include: { mataKuliah: true }
+    });
+
+    // Ambil semua mahasiswa di kelas ini
+    const peserta = await prisma.pesertaKelas.findMany({
+      where: { kelasId },
+      include: {
+        mahasiswa: {
+          include: { user: { select: { nama: true } } }
+        }
+      },
+      orderBy: { mahasiswa: { stambuk: 'asc' } }
+    });
+
+    // Ambil semua sesi praktikum kelas ini
+    const sesi = await prisma.sesiPraktikum.findMany({
+      where: { jadwal: { kelasId } },
+      orderBy: [ { pertemuanKe: 'asc' }, { tanggal: 'asc' } ]
+    });
+
+    const sesiIds = sesi.map(s => s.id);
+
+    // Ambil data absensi
+    let absensi = [];
+    if (sesiIds.length > 0) {
+      absensi = await prisma.absensi.findMany({
+        where: { sesiId: { in: sesiIds } }
+      });
+    }
+
+    const formattedStudents = peserta.map(p => ({
+      id: p.mahasiswa.id,
+      nama: p.mahasiswa.user.nama,
+      stambuk: p.mahasiswa.stambuk
+    }));
+
+    res.json({
+      kelas,
+      students: formattedStudents,
+      sessions: sesi,
+      attendance: absensi
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil matriks absensi kelas.' });
+  }
+});
+
 // GET kelas yang di-enroll mahasiswa
 router.get('/enrolled-classes', async (req, res) => {
   try {
@@ -243,7 +310,7 @@ router.get('/nilai/kelas/:kelasId', async (req, res) => {
   }
 });
 
-// GET semua materi untuk mahasiswa (dari matkul yang diikuti)
+// GET semua materi untuk mahasiswa (dari kelas yang diikuti)
 router.get('/materi', async (req, res) => {
   try {
     const mahasiswa = await prisma.mahasiswa.findUnique({
@@ -253,40 +320,27 @@ router.get('/materi', async (req, res) => {
       return res.status(404).json({ message: 'Data mahasiswa tidak ditemukan.' });
     }
 
-    // 1. Matkul dari kelas yang di-enroll
+    // Ambil semua kelas yang di-enroll oleh praktikan ini
     const enrolledClasses = await prisma.pesertaKelas.findMany({
       where: { mahasiswaId: mahasiswa.id },
-      include: { kelas: true }
+      select: { kelasId: true }
     });
-    const classMatkulIds = enrolledClasses.map(pk => pk.kelas.mataKuliahId);
+    const kelasIds = enrolledClasses.map(pk => pk.kelasId);
 
-    // 2. Matkul dari jadwal praktikum yang di-enroll (direct/fallback)
-    const pesertaJadwal = await prisma.pesertaJadwal.findMany({
-      where: { mahasiswaId: mahasiswa.id },
-      select: {
-        jadwal: {
-          select: { mataKuliahId: true },
-        },
-      },
-    });
-    const directMatkulIds = pesertaJadwal.map(pj => pj.jadwal.mataKuliahId);
-
-    const matkulIds = [...new Set([...classMatkulIds, ...directMatkulIds])];
-
-    // Cari materi untuk mata kuliah tersebut
+    // Cari materi khusus untuk kelas-kelas tersebut
     const materi = await prisma.materi.findMany({
       where: {
-        mataKuliahId: { in: matkulIds },
+        kelasId: { in: kelasIds },
       },
       include: {
-        mataKuliah: {
-          select: { kode: true, nama: true },
+        kelas: {
+          include: {
+            mataKuliah: { select: { kode: true, nama: true } }
+          }
         },
         dosen: {
           include: {
-            user: {
-              select: { nama: true },
-            },
+            user: { select: { nama: true } },
           },
         },
       },
@@ -299,8 +353,50 @@ router.get('/materi', async (req, res) => {
   }
 });
 
+// GET jadwal praktikum mahasiswa (berdasarkan kelas yang di-enroll)
+router.get('/jadwal', async (req, res) => {
+  try {
+    const mahasiswa = await prisma.mahasiswa.findUnique({
+      where: { userId: req.user.id }
+    });
+    if (!mahasiswa) {
+      return res.status(404).json({ message: 'Data mahasiswa tidak ditemukan.' });
+    }
+
+    // Ambil kelas yang di-enroll
+    const enrolledClasses = await prisma.pesertaKelas.findMany({
+      where: { mahasiswaId: mahasiswa.id },
+      select: { kelasId: true }
+    });
+    const kelasIds = enrolledClasses.map(pk => pk.kelasId);
+
+    const jadwal = await prisma.jadwalPraktikum.findMany({
+      where: {
+        kelasId: { in: kelasIds }
+      },
+      include: {
+        mataKuliah: true,
+        ruangan: true,
+        asisten: {
+          include: { user: { select: { nama: true } } }
+        },
+        dosen: {
+          include: { user: { select: { nama: true } } }
+        },
+        kelas: true
+      },
+      orderBy: { id: 'asc' }
+    });
+
+    res.json(jadwal);
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mengambil jadwal praktikum.', error: error.message });
+  }
+});
+
 // GET daftar kelas (krs) untuk mahasiswa
 router.get('/kelas', async (req, res) => {
+
   try {
     const mahasiswa = await prisma.mahasiswa.findUnique({
       where: { userId: req.user.id }

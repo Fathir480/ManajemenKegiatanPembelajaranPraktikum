@@ -130,7 +130,7 @@ export default function PraktikanNilai() {
   };
 
   return (
-    <DashboardLayout title="My Gradebook">
+    <DashboardLayout title="Grade Recap">
       <div className="page-header">
         <div className="page-header-left">
           <h1 style={{ fontSize: '28px' }}>Gradebook Matrix</h1>
@@ -143,7 +143,7 @@ export default function PraktikanNilai() {
       <div className="card mb-6">
         <div className="absensi-controls" style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
           <div className="form-group mb-0" style={{ minWidth: '320px', flexGrow: 0 }}>
-            <label className="form-label text-mono" style={{ fontSize: '11px', textTransform: 'uppercase', marginBottom: '6px' }}>Pilih Kelas Praktikum</label>
+            <label className="form-label text-mono" style={{ fontSize: '11px', textTransform: 'uppercase', marginBottom: '6px' }}>Select Practicum Class</label>
             {loadingClasses ? (
               <div className="text-muted text-mono" style={{ fontSize: '12px' }}>Loading your classes...</div>
             ) : classes.length === 0 ? (
@@ -155,9 +155,10 @@ export default function PraktikanNilai() {
                 onChange={handleKelasChange}
                 style={{ width: '100%', fontSize: '13px', textTransform: 'uppercase' }}
               >
+                <option value="" disabled style={{ background: 'var(--surface)', color: 'var(--muted)' }}>-- Select Class --</option>
                 {classes.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.namaKelas} - {c.mataKuliah?.nama} ({c.mataKuliah?.kode})
+                  <option key={c.id} value={c.id} style={{ background: 'var(--surface)', color: 'var(--ink)' }}>
+                    {c.namaKelas} - {c.mataKuliah?.nama}
                   </option>
                 ))}
               </select>
