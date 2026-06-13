@@ -13,14 +13,12 @@ const navItems = {
     { to: '/admin/jadwal', label: 'Schedules' },
     { to: '/admin/absensi', label: 'Attendance' },
     { to: '/admin/nilai', label: 'Grades' },
-    { to: '/admin/ajuan', label: 'Requests' },
   ],
   asisten: [
     { to: '/asisten', label: 'Dashboard', end: true },
     { to: '/asisten/sesi', label: 'Practicum Sessions' },
     { to: '/asisten/absensi', label: 'Attendance & Scanner' },
     { to: '/asisten/nilai', label: 'Grade Input' },
-    { to: '/asisten/ajuan', label: 'Schedule Requests' },
     { to: '/asisten/materi', label: 'Materi & Modul' },
   ],
   dosen: [
@@ -28,7 +26,6 @@ const navItems = {
     { to: '/dosen/absensi', label: 'Attendance' },
     { to: '/dosen/materi', label: 'Materi & Modul' },
     { to: '/dosen/nilai', label: 'Grades' },
-    { to: '/dosen/ajuan', label: 'Schedule Requests' },
   ],
   praktikan: [
     { to: '/praktikan', label: 'Dashboard', end: true },

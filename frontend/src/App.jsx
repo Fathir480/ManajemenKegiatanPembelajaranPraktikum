@@ -18,19 +18,17 @@ import KelolaKelas from './pages/admin/kelas';
 import KelolaRuangan from './pages/admin/ruangan';
 import AdminAbsensi from './pages/admin/absensi';
 import AdminNilai from './pages/admin/nilai';
-import ValidasiAjuan from './pages/admin/ajuan';
+
 
 // Asisten Subpages
 import AsistenSesi from './pages/asisten/sesi';
 import AsistenAbsensi from './pages/asisten/absensi';
 import AsistenNilai from './pages/asisten/nilai';
-import AsistenAjuan from './pages/asisten/ajuan';
 import AsistenMateri from './pages/asisten/materi';
 
 // Dosen Subpages
 import DosenNilai from './pages/dosen/nilai';
 import DosenMateri from './pages/dosen/materi';
-import DosenAjuan from './pages/dosen/ajuan';
 import DosenAbsensi from './pages/dosen/absensi';
 
 // Praktikan Subpages
@@ -105,9 +103,7 @@ export default function App() {
         <Route path="/admin/nilai" element={
           <PrivateRoute allowedRoles={['admin']}><AdminNilai /></PrivateRoute>
         } />
-        <Route path="/admin/ajuan" element={
-          <PrivateRoute allowedRoles={['admin']}><ValidasiAjuan /></PrivateRoute>
-        } />
+
 
         {/* Asisten Routes */}
         <Route path="/asisten" element={<Navigate to="/asisten/dashboard" replace />} />
@@ -123,9 +119,7 @@ export default function App() {
         <Route path="/asisten/materi" element={
           <PrivateRoute allowedRoles={['asisten']}><AsistenMateri /></PrivateRoute>
         } />
-        <Route path="/asisten/ajuan" element={
-          <PrivateRoute allowedRoles={['asisten']}><AsistenAjuan /></PrivateRoute>
-        } />
+
 
         {/* Dosen */}
         <Route path="/dosen" element={
@@ -140,9 +134,7 @@ export default function App() {
         <Route path="/dosen/materi" element={
           <PrivateRoute allowedRoles={['dosen']}><DosenMateri /></PrivateRoute>
         } />
-        <Route path="/dosen/ajuan" element={
-          <PrivateRoute allowedRoles={['dosen']}><DosenAjuan /></PrivateRoute>
-        } />
+
 
         {/* Praktikan */}
         <Route path="/praktikan" element={

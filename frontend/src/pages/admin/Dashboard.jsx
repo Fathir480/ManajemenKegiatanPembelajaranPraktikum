@@ -7,7 +7,7 @@ import JSZip from 'jszip';
 
 export default function AdminDashboard() {
   const user = getUser();
-  const [stats, setStats] = useState({ mahasiswa: 0, dosen: 0, matkul: 0, ajuan: 0 });
+  const [stats, setStats] = useState({ mahasiswa: 0, dosen: 0, matkul: 0 });
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -15,17 +15,15 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [mhs, dsn, mk, aj] = await Promise.all([
+        const [mhs, dsn, mk] = await Promise.all([
           api.get('/admin/mahasiswa'),
           api.get('/admin/dosen'),
           api.get('/admin/matkul'),
-          api.get('/admin/ajuan'),
         ]);
         setStats({
           mahasiswa: mhs.length,
           dosen: dsn.length,
           matkul: mk.length,
-          ajuan: aj.filter(a => a.status === 'menunggu').length,
         });
       } catch (e) { /* silent */ }
     };
@@ -39,14 +37,13 @@ export default function AdminDashboard() {
       setSuccess('');
 
       // Fetch all admin data in parallel
-      const [mhs, dsn, mk, kls, rng, jdw, aj, ast] = await Promise.all([
+      const [mhs, dsn, mk, kls, rng, jdw, ast] = await Promise.all([
         api.get('/admin/mahasiswa'),
         api.get('/admin/dosen'),
         api.get('/admin/matkul'),
         api.get('/admin/kelas'),
         api.get('/admin/ruangan'),
         api.get('/admin/jadwal'),
-        api.get('/admin/ajuan'),
         api.get('/admin/asisten')
       ]);
 
@@ -128,23 +125,6 @@ export default function AdminDashboard() {
       ]);
       zip.file('6_Schedules.xlsx', getWorkbookBuffer(jdwHeaders, jdwRows, 'Schedules'));
 
-      // 7. Requests (Ajuan)
-      const ajHeaders = ['Requester Name', 'Role', 'Original Subject', 'Original Hari', 'Original Jam', 'Target Subject', 'Target Hari', 'Target Jam', 'Reason', 'Status', 'Admin Notes'];
-      const ajRows = aj.map(a => [
-        a.pengaju?.nama || '',
-        a.pengaju?.role?.namaRole || '',
-        a.jadwalAsal?.mataKuliah?.nama || '',
-        a.jadwalAsal?.hari || '',
-        a.jadwalAsal ? `${a.jadwalAsal.jamMulai || ''} - ${a.jadwalAsal.jamSelesai || ''}` : '',
-        a.jadwalTujuan?.mataKuliah?.nama || '',
-        a.jadwalTujuan?.hari || '',
-        a.jadwalTujuan ? `${a.jadwalTujuan.jamMulai || ''} - ${a.jadwalTujuan.jamSelesai || ''}` : '',
-        a.alasan || '',
-        a.status || '',
-        a.catatanAdmin || ''
-      ]);
-      zip.file('7_Requests.xlsx', getWorkbookBuffer(ajHeaders, ajRows, 'Requests'));
-
       // 8. Assistants (Asisten)
       const astHeaders = ['Name', 'Assistant ID (Stambuk)', 'Email', 'Status'];
       const astRows = ast.map(a => [
@@ -177,7 +157,6 @@ export default function AdminDashboard() {
     { label: 'Total Students', value: stats.mahasiswa },
     { label: 'Total Lecturers', value: stats.dosen },
     { label: 'Active Courses', value: stats.matkul },
-    { label: 'Pending Requests', value: stats.ajuan },
   ];
 
   return (
@@ -248,7 +227,6 @@ export default function AdminDashboard() {
             { href: '/admin/ruangan', label: 'Manage Lab Rooms', desc: 'Room capacities & availability' },
             { href: '/admin/absensi', label: 'Attendance Recap', desc: 'Overall attendance logs' },
             { href: '/admin/nilai', label: 'View Grades', desc: 'Detailed student scores' },
-            { href: '/admin/ajuan', label: 'Validate Requests', desc: `${stats.ajuan} waiting for review` },
           ].map(item => (
             <a key={item.href} href={item.href}
               className="card quick-access-card"
