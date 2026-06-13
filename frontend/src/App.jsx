@@ -109,6 +109,7 @@ export default function App() {
         } />
 
         {/* Asisten Routes */}
+        <Route path="/asisten" element={<Navigate to="/asisten/dashboard" replace />} />
         <Route path="/asisten/dashboard" element={
           <PrivateRoute allowedRoles={['asisten']}><AsistenDashboard /></PrivateRoute>
         } />
