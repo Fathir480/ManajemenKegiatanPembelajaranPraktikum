@@ -43,6 +43,7 @@ model User {
   nilaiDiinput        Nilai[]
   absensiDicatat      Absensi[]
   logAktivitas        LogAktivitas[]
+  materiDiunggah      Materi[]            @relation("UploaderRelation")
 
   @@map("users")
 }
@@ -324,6 +325,7 @@ model Materi {
   id           Int        @id @default(autoincrement()) @db.UnsignedInt
   kelasId      Int        @map("kelas_id") @db.UnsignedInt
   dosenId      Int        @map("dosen_id") @db.UnsignedInt
+  uploaderId   Int?       @map("uploader_id") @db.UnsignedInt
   judul        String     @db.VarChar(200)
   deskripsi    String?    @db.Text
   tipe         TipeMateri @default(materi)
@@ -335,6 +337,7 @@ model Materi {
 
   kelas      Kelas      @relation(fields: [kelasId], references: [id], onDelete: Cascade)
   dosen      Dosen      @relation(fields: [dosenId], references: [id])
+  uploader   User?      @relation("UploaderRelation", fields: [uploaderId], references: [id])
 
   @@map("materi")
 }

@@ -51,7 +51,7 @@ export default function PraktikanMateri() {
                 <tr>
                   <th>File Information</th>
                   <th>Course / Class</th>
-                  <th>Sender (Lecturer)</th>
+                  <th>Sender / Uploader</th>
                   <th>Size</th>
                   <th>Upload Date</th>
                   <th style={{ width: '100px', textAlign: 'center' }}>Action</th>
@@ -84,12 +84,17 @@ export default function PraktikanMateri() {
                       </div>
                     </td>
                     <td>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '4px 12px', background: 'var(--surface-soft)', borderRadius: '100px', border: '1px solid var(--hairline)' }}>
-                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold' }}>
-                          {m.dosen?.user?.nama ? m.dosen.user.nama.charAt(0).toUpperCase() : '?'}
-                        </div>
-                        <span style={{ fontSize: '13px', fontWeight: 500 }}>{m.dosen?.user?.nama || 'Unknown Lecturer'}</span>
-                      </div>
+                      {(() => {
+                        const uploaderName = m.uploader?.nama || m.dosen?.user?.nama || 'Unknown Sender';
+                        return (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '4px 12px', background: 'var(--surface-soft)', borderRadius: '100px', border: '1px solid var(--hairline)' }}>
+                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold' }}>
+                              {uploaderName !== 'Unknown Sender' ? uploaderName.charAt(0).toUpperCase() : '?'}
+                            </div>
+                            <span style={{ fontSize: '13px', fontWeight: 500 }}>{uploaderName}</span>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="text-mono" style={{ fontSize: '13px' }}>{m.ukuranKb ? `${m.ukuranKb} KB` : '-'}</td>
                     <td className="text-mono" style={{ fontSize: '13px' }}>{new Date(m.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</td>

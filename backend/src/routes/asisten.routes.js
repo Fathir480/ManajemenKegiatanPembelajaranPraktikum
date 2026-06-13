@@ -446,6 +446,7 @@ router.post('/materi', upload.single('file'), async (req, res) => {
       data: {
         kelasId: parseInt(kelasId),
         dosenId: kelas.dosenId, // Asisten mengatasnamakan dosen penanggung jawab kelas
+        uploaderId: req.user.id, // Record the actual uploader (asisten)
         judul, deskripsi,
         tipe: tipe || 'materi',
         filePath: `/uploads/materi/${req.file.filename}`,

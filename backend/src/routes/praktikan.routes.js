@@ -343,6 +343,9 @@ router.get('/materi', async (req, res) => {
             user: { select: { nama: true } },
           },
         },
+        uploader: {
+          select: { nama: true }
+        }
       },
       orderBy: { createdAt: 'desc' },
     });
