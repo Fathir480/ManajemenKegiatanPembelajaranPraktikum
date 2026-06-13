@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { api } from '../../../lib/api';
 import * as XLSX from 'xlsx';
+import { Html5Qrcode } from 'html5-qrcode';
 import '../../admin/absensi/absensi.css';
 
 export default function AsistenAbsensi() {
@@ -24,6 +25,12 @@ export default function AsistenAbsensi() {
   const [editingSession, setEditingSession] = useState(null);
   const [newDate, setNewDate] = useState('');
   const [modalError, setModalError] = useState('');
+
+  // Scanner Modal State
+  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
+  const [scanSessionId, setScanSessionId] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanMessage, setScanMessage] = useState(null); // { type: 'success' | 'error', text: '' }
 
   // Fetch all classes for the dropdown selector
   const fetchClasses = async () => {
@@ -175,6 +182,70 @@ export default function AsistenAbsensi() {
     return `${day}/${month}`;
   };
 
+  // QR Scanner Logic
+  useEffect(() => {
+    let html5QrCode;
+    
+    if (isScannerModalOpen && isScanning && scanSessionId) {
+      html5QrCode = new Html5Qrcode("qr-reader");
+      
+      html5QrCode.start(
+        { facingMode: "environment" }, // Prefer back camera
+        {
+          fps: 5,
+          qrbox: { width: 250, height: 250 },
+        },
+        async (decodedText) => {
+          // Check if it's already paused/stopped to prevent multiple rapid scans
+          if (html5QrCode.getState() === 2) { // 2 = SCANNING
+            html5QrCode.pause(true); // pause scanning momentarily
+            try {
+              const res = await api.post('/asisten/absensi/qr', {
+                sesiId: scanSessionId,
+                qrToken: decodedText
+              });
+              setScanMessage({ type: 'success', text: res.message || 'Absen berhasil.' });
+            } catch (err) {
+              setScanMessage({ type: 'error', text: err.message || 'Gagal absen.' });
+            }
+            
+            // Resume scanning after 2.5 seconds
+            setTimeout(() => {
+              setScanMessage(null);
+              if (html5QrCode && html5QrCode.getState() === 3) { // 3 = PAUSED
+                html5QrCode.resume();
+              }
+            }, 2500);
+          }
+        },
+        (errorMessage) => {
+          // Ignore general scan errors (no QR found in frame)
+        }
+      ).catch((err) => {
+        setScanMessage({ type: 'error', text: 'Gagal mengakses kamera. Pastikan izin kamera diberikan.' });
+        console.error("Camera start error:", err);
+      });
+    }
+
+    return () => {
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+          html5QrCode.clear();
+        }).catch(console.error);
+      }
+    };
+  }, [isScannerModalOpen, isScanning, scanSessionId]);
+
+  const handleCloseScanner = () => {
+    setIsScannerModalOpen(false);
+    setIsScanning(false);
+    setScanSessionId('');
+    setScanMessage(null);
+    if (selectedKelasId) {
+      fetchAttendanceData(selectedKelasId); // Refresh data when closed
+    }
+  };
+
   const handleExportExcel = () => {
     const dateHeaders = sessions.map(s => formatDateDisplay(s.tanggal));
     const headers = [['Student Name', 'NIM / Stambuk', ...dateHeaders]];
@@ -208,9 +279,21 @@ export default function AsistenAbsensi() {
         </div>
         <div className="flex gap-3">
           {selectedKelasId && students.length > 0 && sessions.length > 0 && (
-            <button className="btn btn-ghost" onClick={handleExportExcel}>
-              Export to Excel
-            </button>
+            <>
+              <button className="btn btn-outline" onClick={() => setIsScannerModalOpen(true)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <rect x="7" y="7" width="3" height="3" />
+                  <rect x="14" y="7" width="3" height="3" />
+                  <rect x="7" y="14" width="3" height="3" />
+                  <rect x="14" y="14" width="3" height="3" />
+                </svg>
+                Scan QR
+              </button>
+              <button className="btn btn-ghost" onClick={handleExportExcel}>
+                Export to Excel
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -404,6 +487,78 @@ export default function AsistenAbsensi() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* QR SCANNER MODAL */}
+      {isScannerModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">QR Attendance Scanner</h3>
+              <button className="modal-close" onClick={handleCloseScanner}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="login-form">
+              <div style={{ fontSize: '13px', color: 'var(--body)', marginBottom: '16px', lineHeight: 1.5 }}>
+                Silakan pilih sesi pertemuan terlebih dahulu. Setelah dipilih, tekan "Mulai Kamera" untuk memulai proses scan QR mahasiswa.
+              </div>
+
+              {!isScanning && (
+                <div className="form-group">
+                  <label className="form-label">Sesi Pertemuan</label>
+                  <select 
+                    className="form-select" 
+                    value={scanSessionId} 
+                    onChange={(e) => setScanSessionId(e.target.value)}
+                  >
+                    <option value="">-- Pilih Sesi --</option>
+                    {sessions.map(s => (
+                      <option key={s.id} value={s.id}>
+                        Pertemuan {s.pertemuanKe} ({formatDateDisplay(s.tanggal)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {scanMessage && (
+                <div className={`alert alert-${scanMessage.type} mb-4`} style={{ fontSize: '14px', textAlign: 'center', padding: '12px' }}>
+                  {scanMessage.text}
+                </div>
+              )}
+
+              {isScanning ? (
+                <div className="scanner-container" style={{ marginTop: '20px' }}>
+                  <div id="qr-reader" style={{ width: '100%', borderRadius: '8px', overflow: 'hidden', border: '2px solid var(--hairline-strong)' }}></div>
+                  <div className="flex-center mt-4" style={{ display: 'flex', justifyContent: 'center' }}>
+                    <button type="button" className="btn btn-outline" onClick={() => { setIsScanning(false); setScanMessage(null); }}>
+                      Stop Kamera
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-end gap-3" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+                  <button type="button" className="btn btn-ghost" onClick={handleCloseScanner}>
+                    Tutup
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-primary" 
+                    disabled={!scanSessionId}
+                    onClick={() => setIsScanning(true)}
+                  >
+                    Mulai Kamera
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
