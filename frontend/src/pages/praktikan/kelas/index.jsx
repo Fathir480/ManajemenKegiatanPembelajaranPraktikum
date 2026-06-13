@@ -151,7 +151,7 @@ export default function PraktikanKelas() {
                     <td style={{ textAlign: 'center' }}>
                       {c.isEnrolled ? (
                         <button 
-                          className="btn btn-danger btn-sm" 
+                          className="btn btn-outline-drop btn-sm" 
                           style={{ width: '90px' }}
                           onClick={() => handleDrop(c.id, c.namaKelas)}
                         >

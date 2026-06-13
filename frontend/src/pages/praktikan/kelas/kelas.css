@@ -44,3 +44,15 @@
   background-color: var(--hairline-strong);
   color: var(--body-muted);
 }
+
+.btn-outline-drop {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--muted);
+}
+
+.btn-outline-drop:hover {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}

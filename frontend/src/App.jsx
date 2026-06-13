@@ -34,7 +34,7 @@ import DosenAjuan from './pages/dosen/ajuan';
 import DosenAbsensi from './pages/dosen/absensi';
 
 // Praktikan Subpages
-import PraktikanQR from './pages/praktikan/qr';
+
 import PraktikanJadwal from './pages/praktikan/jadwal';
 import PraktikanAbsensi from './pages/praktikan/absensi';
 import PraktikanNilai from './pages/praktikan/nilai';
@@ -148,9 +148,7 @@ export default function App() {
         <Route path="/praktikan" element={
           <PrivateRoute allowedRoles={['praktikan']}><PraktikanDashboard /></PrivateRoute>
         } />
-        <Route path="/praktikan/qr" element={
-          <PrivateRoute allowedRoles={['praktikan']}><PraktikanQR /></PrivateRoute>
-        } />
+
         <Route path="/praktikan/jadwal" element={
           <PrivateRoute allowedRoles={['praktikan']}><PraktikanJadwal /></PrivateRoute>
         } />

@@ -32,7 +32,6 @@ const navItems = {
   ],
   praktikan: [
     { to: '/praktikan', label: 'Dashboard', end: true },
-    { to: '/praktikan/qr', label: 'My QR Code' },
     { to: '/praktikan/kelas', label: 'Class Enrollment' },
     { to: '/praktikan/jadwal', label: 'Schedules' },
     { to: '/praktikan/absensi', label: 'Attendance' },

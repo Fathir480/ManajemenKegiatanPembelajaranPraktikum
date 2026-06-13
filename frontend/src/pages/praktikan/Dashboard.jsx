@@ -72,21 +72,43 @@ export default function PraktikanDashboard() {
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div className="card">
-            <div className="card-header"><h3 className="card-title">Quick Links</h3></div>
-            <div className="grid-2" style={{ gap: '10px' }}>
+          {/* Quick Access */}
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="card-header" style={{ padding: '24px 24px 16px', borderBottom: 'none', marginBottom: 0 }}>
+              <h3 className="card-title">Quick Access</h3>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
               {[
-                { href: '/praktikan/jadwal', label: 'View Schedule' },
-                { href: '/praktikan/materi', label: 'View Materials' },
-                { href: '/praktikan/nilai', label: 'View Grades' },
-                { href: '/praktikan/absensi', label: 'Attendance Recap' },
-                { href: '/praktikan/qr', label: 'My QR Code' },
+                { href: '/praktikan/kelas', label: 'Class Enrollment', desc: 'Enroll and manage your semester plan (KRS)' },
+                { href: '/praktikan/jadwal', label: 'Schedules', desc: 'View your practicum timeline' },
+                { href: '/praktikan/absensi', label: 'Attendance', desc: 'Check your attendance recap' },
+                { href: '/praktikan/nilai', label: 'Grades', desc: 'Monitor your academic performance' },
+                { href: '/praktikan/materi', label: 'Materi & Modul', desc: 'Access practicum resources' },
               ].map(item => (
-                <a key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--hairline)', textDecoration: 'none', color: 'var(--ink)', transition: 'all var(--transition)' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--pacific-blue)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--hairline)'; e.currentTarget.style.background = 'transparent'; }}>
-                  <span style={{ fontWeight: 500, fontSize: '14px' }}>{item.label}</span>
+                <a key={item.href} href={item.href} 
+                  style={{ 
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+                    padding: '16px 24px', 
+                    borderTop: '1px solid var(--hairline)', 
+                    textDecoration: 'none', color: 'var(--ink)', 
+                    transition: 'all var(--transition)',
+                    background: 'var(--surface)'
+                  }}
+                  onMouseEnter={e => { 
+                    e.currentTarget.style.background = 'var(--surface-soft)'; 
+                    const arrow = e.currentTarget.querySelector('.arrow-icon');
+                    if(arrow) arrow.style.transform = 'translateX(4px)';
+                  }}
+                  onMouseLeave={e => { 
+                    e.currentTarget.style.background = 'var(--surface)'; 
+                    const arrow = e.currentTarget.querySelector('.arrow-icon');
+                    if(arrow) arrow.style.transform = 'translateX(0)';
+                  }}>
+                  <div>
+                    <div style={{ fontWeight: 500, fontSize: '15px', fontFamily: 'var(--font-display)', letterSpacing: '0.5px' }}>{item.label}</div>
+                    <div style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '4px', fontFamily: 'var(--font-body)' }}>{item.desc}</div>
+                  </div>
+                  <span className="arrow-icon" style={{ color: 'var(--muted)', transition: 'transform var(--transition)', fontSize: '18px', fontFamily: 'var(--font-mono)' }}>→</span>
                 </a>
               ))}
             </div>
@@ -106,13 +128,13 @@ export default function PraktikanDashboard() {
           {profil && (
             <>
               <div className="qr-card-name">{profil.user?.nama}</div>
-              <div className="qr-card-stambuk">{profil.stambuk}</div>
+              <div className="qr-card-stambuk" style={{ color: 'var(--body-muted)' }}>{profil.stambuk}</div>
             </>
           )}
           <p className="qr-hint">Show this QR code to the assistant during practicum</p>
           {qrDataUrl && (
             <a href={qrDataUrl} download="qr-absensi.png"
-              className="btn btn-outline btn-sm"
+              className="btn btn-ghost btn-sm"
               style={{ marginTop: '12px', width: '100%', justifyContent: 'center', display: 'flex' }}>
               Download QR
             </a>
