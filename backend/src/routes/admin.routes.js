@@ -46,16 +46,6 @@ router.post('/mahasiswa', async (req, res) => {
     const existingMhs = await prisma.mahasiswa.findUnique({ where: { stambuk } });
     if (existingMhs) return res.status(400).json({ message: 'Stambuk sudah terdaftar.' });
 
-    // Hitung jumlah mahasiswa di angkatan & prodi yang sama untuk menentukan kelas otomatis (A1, A2, dst - maks 30 per kelas)
-    const count = await prisma.mahasiswa.count({
-      where: {
-        angkatan: parseInt(angkatan),
-        programStudi: programStudi || null
-      }
-    });
-    const classNumber = Math.floor(count / 30) + 1;
-    const kelas = `A${classNumber}`;
-
     const roleId = await prisma.role.findUnique({ where: { namaRole: 'praktikan' } });
     const passwordHash = await bcrypt.hash(finalPassword, 10);
 
@@ -66,14 +56,14 @@ router.post('/mahasiswa', async (req, res) => {
         passwordHash,
         roleId: roleId.id,
         mahasiswa: {
-          create: { stambuk, angkatan: parseInt(angkatan), programStudi, kelas },
+          create: { stambuk, angkatan: parseInt(angkatan), programStudi },
         },
       },
       include: { mahasiswa: true },
     });
 
     const { passwordHash: _, ...userSafe } = user;
-    res.status(201).json({ message: `Mahasiswa berhasil ditambahkan ke Kelas ${kelas}.`, data: userSafe });
+    res.status(201).json({ message: `Mahasiswa berhasil ditambahkan.`, data: userSafe });
   } catch (error) {
     res.status(500).json({ message: 'Gagal menambah mahasiswa.', error: error.message });
   }
@@ -161,16 +151,6 @@ router.post('/mahasiswa/bulk', async (req, res) => {
         const existingMhs = await prisma.mahasiswa.findUnique({ where: { stambuk: String(stambuk) } });
         if (existingMhs) { skipCount++; continue; }
 
-        // Hitung kelas otomatis (A1, A2, dst)
-        const count = await prisma.mahasiswa.count({
-          where: {
-            angkatan: parseInt(angkatan),
-            programStudi: programStudi || null
-          }
-        });
-        const classNumber = Math.floor(count / 30) + 1;
-        const kelas = `A${classNumber}`;
-
         const pHash = await bcrypt.hash(finalPassword, 10);
 
         await prisma.user.create({
@@ -180,7 +160,7 @@ router.post('/mahasiswa/bulk', async (req, res) => {
             passwordHash: pHash,
             roleId: roleId.id,
             mahasiswa: {
-              create: { stambuk: String(stambuk), angkatan: parseInt(angkatan), programStudi, kelas },
+              create: { stambuk: String(stambuk), angkatan: parseInt(angkatan), programStudi },
             },
           }
         });
